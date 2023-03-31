@@ -1,0 +1,77 @@
+[
+    {
+      "id": 10667024759,
+      "run_id": 3927885359,
+      "workflow_name": "This is an integration test",
+      "head_branch": "main",
+      "run_url": "https://api.github.com/repos/TiutiuMadalin/testGithubActions/actions/runs/3927885359",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOIW3MO88AAAACe83hdw",
+      "head_sha": "b8a1ec066716027cb4f34fedc9d5cf9f37d44664",
+      "url": "https://api.github.com/repos/TiutiuMadalin/testGithubActions/actions/jobs/10667024759",
+      "html_url": "https://github.com/TiutiuMadalin/testGithubActions/actions/runs/3927885359/jobs/6714923135",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2023-01-16T06:43:33Z",
+      "completed_at": "2023-01-16T06:43:38Z",
+      "name": "This is a job for the integration test",
+      "steps": [
+        {
+          "name": "This is the first step for the integration test",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2023-01-16T06:43:33.000Z",
+          "completed_at": "2023-01-16T06:43:34.000Z"
+        },
+        {
+          "name": "This is the second step for the integration test",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2023-01-16T06:43:34.000Z",
+          "completed_at": "2023-01-16T06:43:35.000Z"
+        },
+        {
+          "name": "This is the 3rd step for the integration test",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2023-01-16T06:43:38.000Z",
+          "completed_at": "2023-01-16T06:43:35.000Z"
+        },
+        {
+          "name": "This is the 4th step for the integration test",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2023-01-16T06:43:38.000Z",
+          "completed_at": "2023-01-16T06:43:35.000Z"
+        },
+        {
+          "name": "This is the 5th step for the integration test",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2023-01-16T06:43:38.000Z",
+          "completed_at": "2023-01-16T06:43:36.000Z"
+        },
+        {
+          "name": "This is the 6th step for the integration test",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2023-01-16T06:43:36.000Z",
+          "completed_at": "2023-01-16T06:43:36.000Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/TiutiuMadalin/testGithubActions/check-runs/10667024759",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1,
+      "runner_name": "Hosted Agent",
+      "runner_group_id": 2,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]

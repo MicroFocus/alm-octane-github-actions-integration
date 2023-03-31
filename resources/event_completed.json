@@ -1,0 +1,21 @@
+{
+  "action": "completed",
+  "repository": {
+    "name": "testGithubActions",
+    "owner": {}
+  },
+  "workflow_run": {
+    "id": 3927885359,
+    "run_number": 1,
+    "event": "workflow_dispatch",
+    "run_started_at": "2023-01-16T06:43:25Z",
+    "updated_at": "2023-01-16T06:43:25Z",
+    "conclusion": "success",
+    "triggering_actor": {
+      "login": "TiutiuMadalin"
+    }
+  },
+  "workflow": {
+    "name": "This is an integration test"
+  }
+}

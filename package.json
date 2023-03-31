@@ -1,0 +1,42 @@
+{
+  "name": "alm-octane-github-actions-integration",
+  "version": "1.0.0",
+  "description": "A custom action which facilitates the connection between GitHub actions and ALM Octane.",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "jest",
+    "test-integration": "jest --testMatch=\"**/*.integration.*\"",
+    "build": "ncc build --license licenses.txt"
+  },
+  "keywords": [
+    "GitHub",
+    "actions",
+    "CI",
+    "pipeline",
+    "workflow",
+    "DevOps"
+  ],
+  "author": "Silviu-Constantin Anton",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "jest": "^29.3.1",
+    "ts-jest": "^29.0.5",
+    "ts-node": "^10.9.1",
+    "@types/adm-zip": "^0.5.0",
+    "@types/fs-extra": "^11.0.1",
+    "@types/jest": "^29.4.0",
+    "@types/node": "^18.8.5",
+    "@vercel/ncc": "^0.36.1",
+    "typescript": "^4.8.4"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.0",
+    "@actions/github": "^5.1.1",
+    "@microfocus/alm-octane-js-rest-sdk": "^16.1.100-3",
+    "adm-zip": "^0.5.10",
+    "@microfocus/alm-octane-test-result-convertion": "^1.0.1",
+    "fs-extra": "^11.1.0",
+    "glob": "^8.1.0",
+    "glob-promise": "^6.0.2"
+  }
+}

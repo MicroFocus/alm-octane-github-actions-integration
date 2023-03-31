@@ -1,0 +1,30 @@
+name: 'ALM Octane GitHub Actions Integration'
+description: 'Sends CI/CD data from GitHub Actions to ALM Octane.'
+inputs:
+  octaneUrl:
+    description: 'Url of ALM Octane instance'
+    required: true
+  octaneSharedSpace:
+    description: 'Shared Space ID'
+    required: true
+  octaneWorkspace:
+    description: 'Workspace ID'
+    required: true
+  octaneClientId:
+    description: "ALM Octane API Access Client ID"
+    required: true
+  octaneClientSecret:
+    description: 'ALM Octane API Access Client Secret'
+    required: true
+  gitHubToken:
+    description: 'GitHub PAT'
+    required: true
+  serverBaseUrl:
+    description: 'URL of the organization/repository in GitHub'
+    required: true
+  unitTestResultsGlobPattern:
+    description: 'Pattern to search unit test result report files in artifacts'
+    required: false
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
