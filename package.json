@@ -1,6 +1,6 @@
 {
   "name": "alm-octane-github-actions-integration",
-  "version": "1.0.0",
+  "version": "23.3.0",
   "description": "A custom action which facilitates the connection between GitHub actions and ALM Octane.",
   "main": "src/main.ts",
   "scripts": {

@@ -6,12 +6,13 @@ Custom GitHub action which facilitates communication between GitHub and ALM Octa
 &nbsp;[Workflow Configuration](#Workflow-Configuration)
 
 &nbsp;[Change log](#Change-log)
+- [v23.3.0](#v2330)
 - [v1.0](#v10)
 
 ## Requirements
-- At least one GitHub runner alocated for running the integration.
+- At least one GitHub runner allocated for running the integration.
 - ALM Octane version 16.1.200 or higher
-- ALM Octane API Acess with CI/CD Integration and DevOps Admin roles.
+- ALM Octane API Access with CI/CD Integration and DevOps Admin roles.
 
 ## Workflow Configuration
 ### Note: these steps should be done inside your GitHub repository.
@@ -38,6 +39,7 @@ env:
 secret variables configuration [here](https://docs.github.com/en/actions/security-guides/encrypted-secrets)).
 - Set integration config params (ALM Octane URL, Shared Space, Workspace, credentials) and repository (Token and URL).
 - Set unitTestResultsGlobPattern to match desired Test Results path.
+- For Private repositories go to ```Settings -> Actions -> General``` and set your GITHUB_TOKEN permissions to Read and write. This is necessary to access the actions scope. (more details about GITHUB_TOKEN permissions [here](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token))
 
 ```yaml
 jobs:
@@ -104,13 +106,16 @@ jobs:
 
 ## Limitations
 - Needs at least one dedicated GitHub runner to execute the integration workflow.
-- On each pipeline run, the commits that happened since the previous ALM Octane build will be injected. For that, at least one ALM Octane build needs to exist (the commits will be injected starting from the second run of the pipepline with the integration).
+- On each pipeline run, the commits that happened since the previous ALM Octane build will be injected. For that, at least one ALM Octane build needs to exist (the commits will be injected starting from the second run of the pipeline with the integration).
 - Commits from secondary branches will be injected by running the workflow on the desired branch.
 ## Change log
 
+### v23.3.0
+ - Rebranding.
+ - Fixed issue with logs when connection to ALM Octane was failing.
+ 
 ### v1.0
 - Creates CI server and pipelines, and reflects pipeline run status in ALM Octane.
 - Injects JUnit test results.
 - Injects SCM data (commits and branches).
 - Injects pull requests on GitHub PR events.
-
