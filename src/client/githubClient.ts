@@ -25,7 +25,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 import { getOctokit } from '@actions/github';
 import { getConfig } from '../config/config';
@@ -34,8 +34,11 @@ import Artifact from '../dto/github/Artifact';
 import Commit from '../dto/github/Commit';
 import WorkflowRun from '../dto/github/WorkflowRun';
 import WorkflowRunStatus from '../dto/github/WorkflowRunStatus';
+import { Logger } from '../utils/logger';
 
 export default class GitHubClient {
+  private static LOGGER: Logger = new Logger('githubClient');
+
   private static octokit = getOctokit(getConfig().githubToken);
 
   public static getWorkflowRunJobs = async (
@@ -43,6 +46,10 @@ export default class GitHubClient {
     repo: string,
     workflowRunId: number
   ): Promise<ActionsJob[]> => {
+    this.LOGGER.debug(
+      `Getting all jobs for workflow run with {run_id='${workflowRunId}'}...`
+    );
+
     return await this.octokit.paginate(
       this.octokit.rest.actions.listJobsForWorkflowRun,
       {
@@ -60,6 +67,8 @@ export default class GitHubClient {
     repo: string,
     jobId: number
   ): Promise<ActionsJob> => {
+    this.LOGGER.debug(`Getting job with {job_id='${jobId}'}...`);
+
     return (
       await this.octokit.rest.actions.getJobForWorkflowRun({
         owner,
@@ -76,6 +85,10 @@ export default class GitHubClient {
     workflowId: number,
     status: WorkflowRunStatus
   ): Promise<WorkflowRun[]> => {
+    this.LOGGER.debug(
+      `Getting workflow runs before '${beforeTime}' with {workflow_id='${workflowId}', status='${status}'}...`
+    );
+
     return (
       await this.octokit.paginate(
         this.octokit.rest.actions.listWorkflowRuns,
@@ -97,6 +110,10 @@ export default class GitHubClient {
     repo: string,
     workflowRunId: number
   ): Promise<WorkflowRun> => {
+    this.LOGGER.debug(
+      `Getting workflow run with {run_id='${workflowRunId}'}...`
+    );
+
     return (
       await this.octokit.rest.actions.getWorkflowRun({
         owner,
@@ -111,6 +128,10 @@ export default class GitHubClient {
     repo: string,
     workflowRunId: number
   ): Promise<Artifact[]> => {
+    this.LOGGER.debug(
+      `Getting artifacts for workflow run with {run_id='${workflowRunId}'}...`
+    );
+
     return await this.octokit.paginate(
       this.octokit.rest.actions.listWorkflowRunArtifacts,
       { owner, repo, run_id: workflowRunId, per_page: 100 },
@@ -123,6 +144,10 @@ export default class GitHubClient {
     repo: string,
     artifactId: number
   ): Promise<ArrayBuffer> => {
+    this.LOGGER.info(
+      `Downloading artifact with {artifactId='${artifactId}'}...`
+    );
+
     return <ArrayBuffer>(
       await this.octokit.rest.actions.downloadArtifact({
         owner,
@@ -139,6 +164,11 @@ export default class GitHubClient {
     branch: string,
     since: Date
   ): Promise<string[]> => {
+    const isoFormattedSince = since.toISOString();
+    this.LOGGER.debug(
+      `Getting commits since '${isoFormattedSince}' for branch '${branch}'...`
+    );
+
     return <string[]>(
       await this.octokit.paginate(
         this.octokit.rest.repos.listCommits,
@@ -146,7 +176,7 @@ export default class GitHubClient {
           owner,
           repo,
           sha: branch,
-          since: since.toISOString(),
+          since: isoFormattedSince,
           per_page: 100
         },
         response => response.data
@@ -159,6 +189,8 @@ export default class GitHubClient {
     repo: string,
     commitSha: string
   ): Promise<Commit> => {
+    this.LOGGER.trace(`Getting commit with {ref='${commitSha}'}...`);
+
     return (
       await this.octokit.rest.repos.getCommit({
         owner,
@@ -173,6 +205,10 @@ export default class GitHubClient {
     repo: string,
     pullRequestNumber: number
   ): Promise<string[]> => {
+    this.LOGGER.debug(
+      `Getting commits for pull request with {pull_number='${pullRequestNumber}'}...`
+    );
+
     return <string[]>(
       await this.octokit.paginate(
         this.octokit.rest.pulls.listCommits,

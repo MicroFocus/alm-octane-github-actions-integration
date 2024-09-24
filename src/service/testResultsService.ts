@@ -25,7 +25,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 import AdmZip from 'adm-zip';
 import { convertJUnitXMLToOctaneXML } from '@microfocus/alm-octane-test-result-convertion';
@@ -34,6 +34,9 @@ import glob from 'glob-promise';
 import GitHubClient from '../client/githubClient';
 import OctaneClient from '../client/octaneClient';
 import { getConfig } from '../config/config';
+import { Logger } from '../utils/logger';
+
+const LOGGER: Logger = new Logger('testResultsService');
 
 const ARTIFACTS_DIR = 'artifacts';
 
@@ -45,7 +48,8 @@ const sendJUnitTestResults = async (
   jobId: string,
   serverId: string
 ) => {
-  console.log('Searching for test results...');
+  LOGGER.info('Searching for test results...');
+
   const unitTestResultPattern = getConfig().unitTestResultsGlobPattern;
   if (!unitTestResultPattern) {
     throw new Error('Unit Test Results file pattern is not configured!');
@@ -62,7 +66,6 @@ const sendJUnitTestResults = async (
   for (const artifact of runArtifacts) {
     const fileName = `${ARTIFACTS_DIR}/${artifact.name}.zip`;
 
-    console.log(`Downloading artifact ${artifact.name}...`);
     const artifactZipBytes = await GitHubClient.downloadArtifact(
       owner,
       repo,
@@ -81,11 +84,11 @@ const sendJUnitTestResults = async (
     cwd: globSearchDestination
   });
 
-  console.log(
+  LOGGER.info(
     `Found ${reportFiles.length} test results according to pattern '${unitTestResultPattern}'`
   );
 
-  console.log('Converting and sending test results to ALM Octane...');
+  LOGGER.info('Converting and sending test results to ALM Octane...');
   for (const reportFile of reportFiles) {
     const fileContent = fsExtra.readFileSync(
       `${ARTIFACTS_DIR}/${reportFile}`,

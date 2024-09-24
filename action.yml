@@ -22,9 +22,16 @@ inputs:
   serverBaseUrl:
     description: 'URL of the organization/repository in GitHub'
     required: true
+  pipelineNamePattern:
+    description: 'Pattern to build pipeline names'
+    required: true
   unitTestResultsGlobPattern:
     description: 'Pattern to search unit test result report files in artifacts'
     required: false
+  logLevel:
+    description: 'Sets the log level (1-5): 1-trace, 2-debug, 3-info, 4-warn, 5-error'
+    required: false
+    default: 3
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/index.js'

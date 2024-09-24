@@ -25,7 +25,36 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
+
+import * as path from 'path';
+
+const extractWorkflowFileName = (workflowPath: string): string => {
+  return path.basename(workflowPath);
+};
+
+const isVersionGreaterOrEqual = (
+  version1: string,
+  version2: string
+): boolean => {
+  if (!version1 || !version2) {
+    return false;
+  }
+
+  const version1Array = version1.split('.');
+  const version2Array = version2.split('.');
+
+  for (let i = 0; i < version1Array.length && i < version2Array.length; i++) {
+    const version1Part = parseInt(version1Array[i]);
+    const version2Part = parseInt(version2Array[i]);
+
+    if (version1Part !== version2Part) {
+      return version1Part > version2Part;
+    }
+  }
+
+  return version1Array.length >= version2Array.length;
+};
 
 const sleep = async (milis: number): Promise<void> => {
   return new Promise<void>(resolve => {
@@ -33,4 +62,4 @@ const sleep = async (milis: number): Promise<void> => {
   });
 };
 
-export { sleep };
+export { extractWorkflowFileName, isVersionGreaterOrEqual, sleep };

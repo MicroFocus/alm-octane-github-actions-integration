@@ -29,6 +29,7 @@
 
 const enum ActionsEventType {
   WORKFLOW_QUEUED = 'requested',
+  WORKFLOW_STARTED = 'in_progress',
   WORKFLOW_FINISHED = 'completed',
   PULL_REQUEST_OPENED = 'opened',
   PULL_REQUEST_CLOSED = 'closed',

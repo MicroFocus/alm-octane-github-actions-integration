@@ -31,6 +31,7 @@ import {
   PayloadRepository,
   WebhookPayload
 } from '@actions/github/lib/interfaces';
+import Workflow from './Workflow';
 
 interface GitHubRepository extends PayloadRepository {
   id?: string;
@@ -38,9 +39,7 @@ interface GitHubRepository extends PayloadRepository {
 
 export default interface ActionsEvent extends WebhookPayload {
   repository?: GitHubRepository;
-  workflow?: {
-    name: string;
-  };
+  workflow?: Workflow;
   workflow_run?: {
     id: number;
     conclusion?: string;

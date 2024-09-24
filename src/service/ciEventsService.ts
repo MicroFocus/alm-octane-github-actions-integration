@@ -25,11 +25,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 import GitHubClient from '../client/githubClient';
 import ActionsEvent from '../dto/github/ActionsEvent';
 import ActionsEventType from '../dto/github/ActionsEventType';
+import { ActionsJob } from '../dto/github/ActionsJob';
 import WorkflowRun from '../dto/github/WorkflowRun';
 import WorkflowRunStatus from '../dto/github/WorkflowRunStatus';
 import CiEvent from '../dto/octane/events/CiEvent';
@@ -65,10 +66,14 @@ const pollForJobsOfTypeToFinish = async (
     );
 
     // Integration job name structure is: OctaneIntegration#${{github.event.action}}#${{github.event.workflow_run.id}}
-    const runsToWaitFor = notFinishedRuns.filter(async run => {
-      const jobs = (
-        await GitHubClient.getWorkflowRunJobs(owner, repoName, run.id)
-      ).filter(job => {
+    const runsMappedToTheirJobs: ActionsJob[][] = await Promise.all(
+      notFinishedRuns.map(run =>
+        GitHubClient.getWorkflowRunJobs(owner, repoName, run.id)
+      )
+    );
+
+    const runsToWaitFor = runsMappedToTheirJobs.filter(jobsForRun => {
+      const jobs = jobsForRun.filter(job => {
         const nameComponents = job.name.split('#');
         const runEventType = nameComponents[1];
         const triggeredByRunId = nameComponents[2];
@@ -82,7 +87,7 @@ const pollForJobsOfTypeToFinish = async (
     });
 
     done = runsToWaitFor.length === 0;
-    sleep(1000);
+    await sleep(3000);
   }
 };
 
@@ -130,6 +135,7 @@ const generateRootCiEvent = (
   event: ActionsEvent,
   pipelineData: PipelineEventData,
   eventType: CiEventType,
+  jobCiIdPrefix: string,
   scmData?: ScmData
 ): CiEvent => {
   const rootEvent: CiEvent = {
@@ -137,7 +143,7 @@ const generateRootCiEvent = (
     eventType,
     number:
       event.workflow_run?.run_number?.toString() || pipelineData.buildCiId,
-    project: pipelineData.rootJobName,
+    project: `${jobCiIdPrefix}`,
     projectDisplayName: pipelineData.rootJobName,
     startTime: event.workflow_run?.run_started_at
       ? new Date(event.workflow_run.run_started_at).getTime()
@@ -145,7 +151,7 @@ const generateRootCiEvent = (
     causes: getCiEventCauses(
       {
         isRoot: true,
-        jobName: pipelineData.rootJobName,
+        jobName: `${jobCiIdPrefix}`,
         causeType: event.workflow_run?.event,
         userId: event.workflow_run?.triggering_actor.login,
         userName: event.workflow_run?.triggering_actor.login
@@ -219,6 +225,8 @@ const getEventType = (event: ActionsEvent): ActionsEventType => {
   switch (event.action) {
     case 'requested':
       return ActionsEventType.WORKFLOW_QUEUED;
+    case 'in_progress':
+      return ActionsEventType.WORKFLOW_STARTED;
     case 'completed':
       return ActionsEventType.WORKFLOW_FINISHED;
     case 'opened':

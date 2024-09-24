@@ -27,52 +27,27 @@
  * limitations under the License.
  */
 
-import { getInput } from '@actions/core';
+class GenericPoller<T> {
+  private lambda: () => Promise<T>;
+  private retries: number;
+  private interval: number;
 
-interface Config {
-  octaneUrl: string;
-  octaneSharedSpace: number;
-  octaneWorkspace: number;
-  octaneClientId: string;
-  octaneClientSecret: string;
-  githubToken: string;
-  serverBaseUrl: string;
-  pipelineNamePattern: string;
-  unitTestResultsGlobPattern: string;
-  logLevel: number;
-}
-
-let config: Config | undefined;
-let errorLoadingConfig: string;
-
-try {
-  config = {
-    octaneUrl: getInput('octaneUrl'),
-    octaneSharedSpace: Number.parseInt(getInput('octaneSharedSpace')),
-    octaneWorkspace: Number.parseInt(getInput('octaneWorkspace')),
-    octaneClientId: getInput('octaneClientId'),
-    octaneClientSecret: getInput('octaneClientSecret'),
-    githubToken: getInput('githubToken'),
-    serverBaseUrl: getInput('serverBaseUrl'),
-    pipelineNamePattern: getInput('pipelineNamePattern'),
-    unitTestResultsGlobPattern: getInput('unitTestResultsGlobPattern'),
-    logLevel: Number.parseInt(getInput('logLevel'))
-  };
-} catch (error: any) {
-  errorLoadingConfig = error.message;
-}
-
-const getConfig = (): Config => {
-  if (!config && errorLoadingConfig) {
-    throw { message: errorLoadingConfig };
-  } else if (!config) {
-    throw { message: 'Config could not be loaded.' };
+  constructor(lambda: () => Promise<T>, retries = 5, interval = 1000) {
+    this.lambda = lambda;
+    this.retries = retries;
+    this.interval = interval;
   }
-  return config;
-};
 
-const setConfig = (newConfig: Config) => {
-  config = newConfig;
-};
+  async poll(): Promise<T> {
+    for (let i = 0; i < this.retries; i++) {
+      try {
+        return await this.lambda();
+      } catch (error) {
+        await new Promise(resolve => setTimeout(resolve, this.interval));
+      }
+    }
+    throw new Error(`Polling failed after ${this.retries} retries.`);
+  }
+}
 
-export { getConfig, setConfig };
+export { GenericPoller };

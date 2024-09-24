@@ -25,9 +25,17 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
+
+import CiJobBody from './CiJobBody';
 
 export default interface CiPipelineBody {
   id: string;
-  multi_branch_type: string;
+  name?: string;
+  server_ci_id?: string;
+
+  jobs?: CiJobBody[];
+  root_job_ci_id?: string;
+
+  multi_branch_type?: string;
 }

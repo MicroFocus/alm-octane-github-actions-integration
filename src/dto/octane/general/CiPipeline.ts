@@ -25,17 +25,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
-import CiJobBody from './bodies/CiJobBody';
-import CiServerBody from './bodies/CiServerBody';
+import { MultiBranchType } from '../events/CiTypes';
+import CiServer from './CiServer';
 
 export default interface CiPipeline {
+  id: string;
   name: string;
-  ci_server: CiServerBody;
-  jobs?: CiJobBody[];
-  root_job_ci_id?: string;
-  root_job_name?: string;
-  notification_track: boolean;
-  notification_track_tester: boolean;
+  ci_server: CiServer;
+  multi_branch_type: MultiBranchType;
 }

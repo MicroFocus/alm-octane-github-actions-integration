@@ -6,12 +6,15 @@ Custom GitHub action which facilitates communication between GitHub and ALM Octa
 &nbsp;[Workflow Configuration](#Workflow-Configuration)
 
 &nbsp;[Change log](#Change-log)
+- [v24.4.1](#v2421)
+- [v24.4.0](#v24240)
+- [v24.2.0](#v2420)
 - [v23.3.0](#v2330)
 - [v1.0](#v10)
 
 ## Requirements
 - At least one GitHub runner allocated for running the integration.
-- ALM Octane version 16.1.200 or higher
+- ALM Octane version 16.1.200 or higher (certain features require a newer version - see documentation)
 - ALM Octane API Access with CI/CD Integration and DevOps Admin roles.
 
 ## Workflow Configuration
@@ -24,7 +27,7 @@ Custom GitHub action which facilitates communication between GitHub and ALM Octa
 on:
   workflow_run:
     workflows: [<workflow_name1>, <workflow_name2>, ...]
-    types: [requested, completed]
+    types: [requested, in_progress, completed]
   pull_request:
     types: [opened, edited, closed, reopened]
 ```
@@ -58,6 +61,7 @@ jobs:
           octaneClientSecret: ${{secrets.ALM_OCTANE_CLIENT_SECRET}}
           githubToken: ${{secrets.GITHUB_TOKEN}}
           serverBaseUrl: <github_repository_URL>
+          pipelineNamePattern: '${workflow_name}'
           unitTestResultsGlobPattern: <pattern_for_test_result_path>
 ```
 
@@ -72,7 +76,7 @@ on:
   workflow_run:
     # List of workflows to integrate with ALM Octane
     workflows: [CI]
-    types: [requested, completed]
+    types: [requested, in_progress, completed]
 # Node configuration for allowing HTTPS requests
 env: 
     NODE_TLS_REJECT_UNAUTHORIZED: 0
@@ -98,17 +102,46 @@ jobs:
           githubToken: ${{secrets.GITHUB_TOKEN}}
           # The url that the CI Server in ALM Octane will point to
           serverBaseUrl: https://github.com/MyUser/MyCustomRepository
+          # Pattern for building the name of the pipeline (see README for full list of placeholders)
+          pipelineNamePattern: '${workflow_name}'
           # Pattern for identifying JUnit style report files for test result injection in ALM Octane
           unitTestResultsGlobPattern: "**/*.xml"
 ```
 - Run the desired workflow(s) from Actions Tab. This will create a new CI Server and pipeline inside ALM Octane, reflecting the status of the executed workflow.
 
+### Pipeline name pattern
+
+- The `pipelineNamePattern` parameter from the integration workflow configuration represents the format of the pipeline name that will be displayed in the OpenText Software Delivery Platform.
+
+- This parameters can contain any combination of the following placeholders:
+1. `${repository_name}` - the name of the repository
+2. `${repository_owner}` - the name of the account or organization owning the repository.
+1. `${workflow_name}` - the name of the workflow.
+2. `${workflow_file_name}` - the name of the workflow's configuration file.
+
+- Example: `NEW - ${repository_name} - ${workflow_name}`
 
 ## Limitations
 - Needs at least one dedicated GitHub runner to execute the integration workflow.
 - On each pipeline run, the commits that happened since the previous ALM Octane build will be injected. For that, at least one ALM Octane build needs to exist (the commits will be injected starting from the second run of the pipeline with the integration).
 - Commits from secondary branches will be injected by running the workflow on the desired branch.
+
 ## Change log
+
+### v24.4.1
+ - Added a new configuration parameter for configuring logging level. It's named `logLevel` and is an optional parameter.
+ - Fixed issue with workflows running in serial mode not being fully reflected in OpenText Software Delivery Platform.
+
+### v24.4.0
+ - Added a new configuration parameter for customizing the pipeline's name. (the one displayed in the OpenText Software Delivery Platform)
+ - Added migration process for multi-branch pipelines.
+ - Added migration process for splitting existing CI servers to per-organization or per-account CI servers.
+ - Running GitHub workflows from the OpenText Software Delivery Platform is now available.
+
+### v24.2.0
+ - Added support for multi branch pipelines.
+ - Fixed issue that caused completion workflows not to finish.
+ - Updated Node.js to v20.
 
 ### v23.3.0
  - Rebranding.

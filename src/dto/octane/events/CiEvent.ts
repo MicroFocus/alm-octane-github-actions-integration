@@ -48,4 +48,5 @@ export default interface CiEvent {
   multiBranchType?: string;
   parentCiId?: string;
   branch?: string;
+  skipValidation?: boolean;
 }

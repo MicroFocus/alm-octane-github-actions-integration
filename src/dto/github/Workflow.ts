@@ -25,54 +25,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+*/
 
-import { getInput } from '@actions/core';
-
-interface Config {
-  octaneUrl: string;
-  octaneSharedSpace: number;
-  octaneWorkspace: number;
-  octaneClientId: string;
-  octaneClientSecret: string;
-  githubToken: string;
-  serverBaseUrl: string;
-  pipelineNamePattern: string;
-  unitTestResultsGlobPattern: string;
-  logLevel: number;
+export default interface Workflow {
+    id: number,
+    name: string,
+    path: string
 }
-
-let config: Config | undefined;
-let errorLoadingConfig: string;
-
-try {
-  config = {
-    octaneUrl: getInput('octaneUrl'),
-    octaneSharedSpace: Number.parseInt(getInput('octaneSharedSpace')),
-    octaneWorkspace: Number.parseInt(getInput('octaneWorkspace')),
-    octaneClientId: getInput('octaneClientId'),
-    octaneClientSecret: getInput('octaneClientSecret'),
-    githubToken: getInput('githubToken'),
-    serverBaseUrl: getInput('serverBaseUrl'),
-    pipelineNamePattern: getInput('pipelineNamePattern'),
-    unitTestResultsGlobPattern: getInput('unitTestResultsGlobPattern'),
-    logLevel: Number.parseInt(getInput('logLevel'))
-  };
-} catch (error: any) {
-  errorLoadingConfig = error.message;
-}
-
-const getConfig = (): Config => {
-  if (!config && errorLoadingConfig) {
-    throw { message: errorLoadingConfig };
-  } else if (!config) {
-    throw { message: 'Config could not be loaded.' };
-  }
-  return config;
-};
-
-const setConfig = (newConfig: Config) => {
-  config = newConfig;
-};
-
-export { getConfig, setConfig };

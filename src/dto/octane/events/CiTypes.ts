@@ -44,6 +44,11 @@ export const enum CiCausesType {
   UNDEFINED = 'undefined'
 }
 
+export const enum MultiBranchType {
+  PARENT = 'PARENT',
+  CHILD = 'CHILD'
+}
+
 export const enum PhaseType {
   POST = 'post',
   INTERNAL = 'internal'

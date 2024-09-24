@@ -25,13 +25,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
-
-import CiParameter from '../../events/CiParameter';
+ */
 
 export default interface CiJobBody {
-  name: string;
-  jobCiId: string;
-  definitionId: number;
-  parameters: CiParameter[];
+  jobId?: string;
+  name?: string;
+  jobCiId?: string;
 }
