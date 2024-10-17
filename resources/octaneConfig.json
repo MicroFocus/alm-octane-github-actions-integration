@@ -1,9 +1,9 @@
 {
-  "octaneUrl": "",
-  "octaneSharedSpace": ,
-  "octaneWorkspace": ,
-  "octaneClientId": "",
-  "octaneClientSecret": "",
-  "githubToken": "",
-  "serverBaseUrl": ""
+    "octaneUrl": "",
+    "octaneSharedSpace": "",
+    "octaneWorkspace": "",
+    "octaneClientId": "",
+    "octaneClientSecret": "",
+    "githubToken": "",
+    "serverBaseUrl": ""
 }

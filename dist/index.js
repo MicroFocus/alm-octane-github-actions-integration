@@ -93397,7 +93397,7 @@ const handleEvent = (event) => __awaiter(void 0, void 0, void 0, function* () {
             const ciServerInstanceId = getCiServerInstanceId(owner, useOldCiServer);
             const ciServerName = yield getCiServerName(owner, useOldCiServer);
             const ciServer = yield octaneClient_1.default.getCiServerOrCreate(ciServerInstanceId, ciServerName, baseUrl, isWorkflowQueued);
-            if (isWorkflowQueued) {
+            if (isWorkflowQueued && !isOldCiServer) {
                 yield octaneClient_1.default.updatePluginVersionIfNeeded(ciServerInstanceId, ciServer);
             }
             const workflowFileName = (0, utils_1.extractWorkflowFileName)(workflowFilePath);

@@ -114,7 +114,7 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
         isWorkflowQueued
       );
 
-      if (isWorkflowQueued) {
+      if (isWorkflowQueued && !isOldCiServer) {
         await OctaneClient.updatePluginVersionIfNeeded(
           ciServerInstanceId,
           ciServer
