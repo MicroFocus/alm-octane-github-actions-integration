@@ -1,16 +1,17 @@
 # alm-octane-github-actions-integration
 Custom GitHub action which facilitates communication between GitHub and ALM Octane/ValueEdge regarding CI/CD.
 
-&nbsp;[Requirements](#Requirements)
+## Table of Contents
 
-&nbsp;[Workflow Configuration](#Workflow-Configuration)
-
-&nbsp;[Change log](#Change-log)
-- [v24.4.1](#v2421)
-- [v24.4.0](#v24240)
-- [v24.2.0](#v2420)
-- [v23.3.0](#v2330)
-- [v1.0](#v10)
+- [Requirements](#requirements)
+- [Workflow Configuration](#workflow-configuration)
+- [Credential Configuration](#credential-configuration-for-opentext-software-delivery-platform)
+- [Change log](#change-log)
+  - [v24.4.1](#v2441)
+  - [v24.4.0](#v2440)
+  - [v24.2.0](#v2420)
+  - [v23.3.0](#v2330)
+  - [v1.0](#v10)
 
 ## Requirements
 - At least one GitHub runner allocated for running the integration.
@@ -18,10 +19,10 @@ Custom GitHub action which facilitates communication between GitHub and ALM Octa
 - ALM Octane API Access with CI/CD Integration and DevOps Admin roles.
 
 ## Workflow Configuration
-### Note: these steps should be done inside your GitHub repository.
+> ***Note: these steps should be done inside your GitHub repository.***
 - Create a new workflow (.yml file).
-- Add workflow_run trigger on the desired workflow(s) on request and complete events.
-- Add pull_request event trigger to also notify the integration of any PR related event.
+- Add `workflow_run` trigger on the desired workflow(s) on request and complete events.
+- Add `pull_request` event trigger to also notify the integration of any PR related event.
 
 ```yaml
 on:
@@ -120,6 +121,47 @@ jobs:
 2. `${workflow_file_name}` - the name of the workflow's configuration file.
 
 - Example: `NEW - ${repository_name} - ${workflow_name}`
+
+## Credential Configuration for OpenText Software Delivery Platform
+
+- To use certain features, the OpenText Software Delivery Platform needs to send requests to GitHub. This requires configuring a GitHub App credential and adding it to the application.
+
+### Creating a GitHub App
+
+1. On GitHub, go to your organization (or account, if the repository containing the workflows is owned by an account) settings.
+2. In the left-side menu, go to **Developer Settings -> GitHub Apps**.
+3. Create a new GitHub App by clicking on **New GitHub App**.
+4. In the **GitHub App name** field, enter a name of your choice.
+5. In the **Homepage URL** field, enter the URL of the Opentext Software Delivery Platform.
+6. In the **Webhook** section, uncheck the **Active** option. No webhook is needed.
+7. In the **Permissions** section, grant the following repository permissions:
+  - Actions: Read and write
+  - Content: Read-only
+8. Click on the **Create GitHub App** button at the bottom of the page. Leave any other fields unchanged.
+
+### Installing a GitHub App to specific repositories
+
+1. On GitHub, go to your organization (or account, if the repository containing the workflows is owned by an account) settings.
+2. Go to **Developer settings -> GitHub App**.
+3. Select the credential you created in the previous step by clicking on its name.
+4. In the left-side menu, go to **Install App**.
+5. For the organization (or account) you want to configure the credential for, click on the **Install** button.
+6. Select the repositories you want to grant access to: **All repositories** or **Only select repositories**
+7. Click on the `Install` button to complete the installation.
+
+### Configure the credential in Opentext Software Delivery Platform
+
+1. On GitHub, go to your organization (or account, if the repository containing the workflows is owned by an account) settings.
+2. Go to **Developer Settings -> GitHub Apps** and select the GitHub App you installed by clicking on its name.
+3. On the current page, note the value of the **Client ID**.
+4. In the **Private keys** section, click on **Generate a private key**. A file containing the private key will be downloaded to your device.
+5. Go to the OpenText Software Delivery Platform.
+6. Navigate to **Settings -> Spaces** (select the desired workspace containing the CI servers) **-> Credentials**.
+7. Create a new credential.
+8. Enter a name of your choice. In the **User Name** field, enter the **Client ID** from the GitHub App, and in the **Password** field, enter the private key generated for this GitHub App.
+9. Click on the `Add` button to create the credential.
+10. In workspace settings, go to **DevOps -> CI Servers**.
+11. For the desired CI server (it has the name of the organization on GitHub), double-click on the cell in the **Credential** column and select the newly created credential. If the **Credential** column is not visible, click on the **Choose Columns** button (near the **Filter** button) and make the column visible.
 
 ## Limitations
 - Needs at least one dedicated GitHub runner to execute the integration workflow.
