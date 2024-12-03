@@ -96694,7 +96694,7 @@ module.exports = parseParams
 "use strict";
 
 /*
- * (c) Copyright 2023 Micro Focus or one of its affiliates.
+ * (c) Copyright 2024 Micro Focus or one of its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -96725,7 +96725,7 @@ exports.convertJUnitXMLToOctaneXML = junitConvertionService_1.default;
 "use strict";
 
 /*
- * (c) Copyright 2023 Micro Focus or one of its affiliates.
+ * (c) Copyright 2024 Micro Focus or one of its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -96758,7 +96758,7 @@ exports.TestRunResult = TestRunResult;
 "use strict";
 
 /*
- * (c) Copyright 2023 Micro Focus or one of its affiliates.
+ * (c) Copyright 2024 Micro Focus or one of its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -96924,7 +96924,7 @@ const mapFailsToOctaneError = (testCase) => {
  * @returns {TestRunResult} - ALM Octane test run status
  */
 const getTestRunStatus = (testCase) => {
-    if (testCase.skipped && (testCase.skipped._text || testCase.skipped._cdata)) {
+    if (testCase.skipped) {
         return TestRun_1.TestRunResult.SKIPPED;
     }
     else if ((testCase.error && testCase.error.length > 0) ||

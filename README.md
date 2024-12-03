@@ -7,6 +7,7 @@ Custom GitHub action which facilitates communication between GitHub and ALM Octa
 - [Workflow Configuration](#workflow-configuration)
 - [Credential Configuration](#credential-configuration-for-opentext-software-delivery-platform)
 - [Change log](#change-log)
+  - [v24.4.2](#v2442)
   - [v24.4.1](#v2441)
   - [v24.4.0](#v2440)
   - [v24.2.0](#v2420)
@@ -169,6 +170,9 @@ jobs:
 - Commits from secondary branches will be injected by running the workflow on the desired branch.
 
 ## Change log
+
+### v24.4.2
+ - Fixed issue that caused skipped test cases to be treated as passed.
 
 ### v24.4.1
  - Added a new configuration parameter for configuring logging level. It's named `logLevel` and is an optional parameter.
