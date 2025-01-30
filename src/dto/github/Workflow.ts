@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -25,10 +25,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 export default interface Workflow {
-    id: number,
-    name: string,
-    path: string
+  id: number;
+  name: string;
+  path: string;
 }

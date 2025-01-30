@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -38,7 +38,9 @@ interface Config {
   githubToken: string;
   serverBaseUrl: string;
   pipelineNamePattern: string;
+  testingFramework: string;
   unitTestResultsGlobPattern: string;
+  gherkinTestResultsGlobPattern: string;
   logLevel: number;
 }
 
@@ -55,7 +57,9 @@ try {
     githubToken: getInput('githubToken'),
     serverBaseUrl: getInput('serverBaseUrl'),
     pipelineNamePattern: getInput('pipelineNamePattern'),
+    testingFramework: getInput('testingFramework'),
     unitTestResultsGlobPattern: getInput('unitTestResultsGlobPattern'),
+    gherkinTestResultsGlobPattern: getInput('gherkinTestResultsGlobPattern'),
     logLevel: Number.parseInt(getInput('logLevel'))
   };
 } catch (error: any) {

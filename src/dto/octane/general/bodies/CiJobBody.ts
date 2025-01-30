@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -27,8 +27,16 @@
  * limitations under the License.
  */
 
+import CiParameter from '../../events/CiParameter';
+import CiServerBody from './CiServerBody';
+
 export default interface CiJobBody {
-  jobId?: string;
+  id?: string;
+  type?: string;
   name?: string;
+  jobId?: string;
   jobCiId?: string;
+  branchName?: string;
+  ciServer?: CiServerBody;
+  parameters?: CiParameter[];
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -28,7 +28,10 @@
  */
 
 import AdmZip from 'adm-zip';
-import { convertJUnitXMLToOctaneXML } from '@microfocus/alm-octane-test-result-convertion';
+import {
+  convertGherkinXMLToOctaneXML,
+  convertJUnitXMLToOctaneXML
+} from '@microfocus/alm-octane-test-result-convertion';
 import fsExtra from 'fs-extra';
 import glob from 'glob-promise';
 import GitHubClient from '../client/githubClient';
@@ -40,20 +43,14 @@ const LOGGER: Logger = new Logger('testResultsService');
 
 const ARTIFACTS_DIR = 'artifacts';
 
-const sendJUnitTestResults = async (
+const processArtifacts = async (
   owner: string,
   repo: string,
-  workflowRunId: number,
-  buildId: string,
-  jobId: string,
-  serverId: string
+  workflowRunId: number
 ) => {
-  LOGGER.info('Searching for test results...');
-
-  const unitTestResultPattern = getConfig().unitTestResultsGlobPattern;
-  if (!unitTestResultPattern) {
-    throw new Error('Unit Test Results file pattern is not configured!');
-  }
+  LOGGER.info(
+    `Starting artifact processing for workflowRunId: ${workflowRunId}, repository: ${owner}/${repo}`
+  );
 
   const runArtifacts = await GitHubClient.getWorkflowRunArtifacts(
     owner,
@@ -61,10 +58,12 @@ const sendJUnitTestResults = async (
     workflowRunId
   );
 
+  LOGGER.info(`Found ${runArtifacts.length} artifacts for processing.`);
   fsExtra.ensureDirSync(ARTIFACTS_DIR);
 
   for (const artifact of runArtifacts) {
     const fileName = `${ARTIFACTS_DIR}/${artifact.name}.zip`;
+    LOGGER.debug(`Downloading artifact: ${artifact.name} (ID: ${artifact.id})`);
 
     const artifactZipBytes = await GitHubClient.downloadArtifact(
       owner,
@@ -73,37 +72,143 @@ const sendJUnitTestResults = async (
     );
     fsExtra.writeFileSync(fileName, Buffer.from(artifactZipBytes));
 
+    LOGGER.debug(`Extracting artifact: ${artifact.name}`);
     const zip = new AdmZip(fileName);
     zip.extractAllTo(ARTIFACTS_DIR);
 
+    LOGGER.debug(`Cleaning up temporary zip file: ${fileName}`);
     fsExtra.rmSync(fileName);
   }
 
+  LOGGER.info('Artifact processing completed.');
+};
+
+const findReportFiles = async (pattern: string): Promise<string[]> => {
+  LOGGER.info(
+    `Initiating search for test result files using pattern: '${pattern}'`
+  );
+
+  if (!pattern) {
+    throw new Error('Test Results file pattern is not configured!');
+  }
+
   const globSearchDestination = `${process.cwd()}/${ARTIFACTS_DIR}`;
-  const reportFiles = await glob(unitTestResultPattern, {
+  const reportFiles = await glob(pattern, {
     cwd: globSearchDestination
   });
 
   LOGGER.info(
-    `Found ${reportFiles.length} test results according to pattern '${unitTestResultPattern}'`
+    `Search completed. Found ${reportFiles.length} test result files matching the pattern.`
   );
 
-  LOGGER.info('Converting and sending test results to ALM Octane...');
+  return reportFiles;
+};
+
+const sendTestResults = async (
+  reportFiles: string[],
+  convertFunction: (
+    content: string,
+    options: any,
+    ...extraParams: any[]
+  ) => string,
+  serverId: string,
+  buildId: string,
+  jobId: string,
+  extraConvertParams: any[] = []
+) => {
+  LOGGER.info(
+    `Starting test results conversion and transmission for ${reportFiles.length} files.`
+  );
+
   for (const reportFile of reportFiles) {
+    LOGGER.debug(`Reading test results file: '${reportFile}'`);
     const fileContent = fsExtra.readFileSync(
       `${ARTIFACTS_DIR}/${reportFile}`,
       'utf-8'
     );
-    const convertedXML = convertJUnitXMLToOctaneXML(fileContent, {
-      server_id: serverId,
-      build_id: buildId,
-      job_id: jobId
-    });
 
-    await OctaneClient.sendTestResult(convertedXML, serverId, jobId, buildId);
+    LOGGER.debug(`Converting test results file: '${reportFile}'`);
+    const convertedXML = convertFunction(
+      fileContent,
+      {
+        server_id: serverId,
+        build_id: buildId,
+        job_id: jobId
+      },
+      ...extraConvertParams
+    );
+
+    LOGGER.debug(
+      `Sending converted test results for file '${reportFile}' and serverId '${serverId}'`
+    );
+
+    await OctaneClient.sendTestResult(
+      convertedXML,
+      serverId,
+      jobId,
+      buildId
+    ).catch(error => {
+      LOGGER.error(
+        `Failed to send test results. Check if the 'testingFramework' parameter is configured in the integration workflow. Error: ${error}`
+      );
+    });
   }
 
+  LOGGER.info('All test results have been sent successfully.');
   fsExtra.emptyDirSync(ARTIFACTS_DIR);
+  LOGGER.debug('Temporary artifacts directory cleared.');
 };
 
-export { sendJUnitTestResults };
+const sendJUnitTestResults = async (
+  owner: string,
+  repo: string,
+  workflowRunId: number,
+  buildId: string,
+  jobId: string,
+  serverId: string
+) => {
+  LOGGER.info('Processing JUnit test results...');
+  await processArtifacts(owner, repo, workflowRunId);
+
+  const unitTestResultPattern = getConfig().unitTestResultsGlobPattern;
+  LOGGER.debug(`JUnit test result pattern: ${unitTestResultPattern}`);
+  const reportFiles = await findReportFiles(unitTestResultPattern);
+
+  await sendTestResults(
+    reportFiles,
+    convertJUnitXMLToOctaneXML,
+    serverId,
+    buildId,
+    jobId
+  );
+  LOGGER.info('JUnit test results processed and sent successfully.');
+};
+
+const sendGherkinTestResults = async (
+  owner: string,
+  repo: string,
+  workflowRunId: number,
+  buildId: string,
+  jobId: string,
+  serverId: string,
+  framework: string
+) => {
+  LOGGER.info('Processing Gherkin test results...');
+  await processArtifacts(owner, repo, workflowRunId);
+
+  const gherkinTestResultPattern = getConfig().gherkinTestResultsGlobPattern;
+  LOGGER.debug(`Gherkin test result pattern: ${gherkinTestResultPattern}`);
+  const reportFiles = await findReportFiles(gherkinTestResultPattern);
+
+  await sendTestResults(
+    reportFiles,
+    convertGherkinXMLToOctaneXML,
+    serverId,
+    buildId,
+    jobId,
+    [framework]
+  );
+  LOGGER.info('Gherkin test results processed and sent successfully.');
+};
+
+export { sendJUnitTestResults, sendGherkinTestResults };

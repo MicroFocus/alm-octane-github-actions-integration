@@ -1,8 +1,8 @@
 name: 'ALM Octane GitHub Actions Integration'
-description: 'Sends CI/CD data from GitHub Actions to ALM Octane.'
+description: 'Sends CI/CD data from GitHub Actions to OpenText SDP / SDM.'
 inputs:
   octaneUrl:
-    description: 'Url of ALM Octane instance'
+    description: 'Url of OpenText SDP / SDM instance'
     required: true
   octaneSharedSpace:
     description: 'Shared Space ID'
@@ -11,10 +11,10 @@ inputs:
     description: 'Workspace ID'
     required: true
   octaneClientId:
-    description: "ALM Octane API Access Client ID"
+    description: "OpenText SDP / SDM API Access Client ID"
     required: true
   octaneClientSecret:
-    description: 'ALM Octane API Access Client Secret'
+    description: 'OpenText SDP / SDM API Access Client Secret'
     required: true
   gitHubToken:
     description: 'GitHub PAT'
@@ -27,6 +27,12 @@ inputs:
     required: true
   unitTestResultsGlobPattern:
     description: 'Pattern to search unit test result report files in artifacts'
+    required: false
+  gherkinTestResultsGlobPattern:
+    description: 'Pattern to search Gherkin test result report files in artifacts'
+    required: false
+  testingFramework:
+    description: 'Testing framework to use for the test runner'
     required: false
   logLevel:
     description: 'Sets the log level (1-5): 1-trace, 2-debug, 3-info, 4-warn, 5-error'

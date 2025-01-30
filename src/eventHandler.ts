@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -34,7 +34,11 @@ import { getConfig } from './config/config';
 import ActionsEvent from './dto/github/ActionsEvent';
 import ActionsEventType from './dto/github/ActionsEventType';
 import PullRequest from './dto/github/PullRequest';
-import { CiEventType, MultiBranchType } from './dto/octane/events/CiTypes';
+import {
+  CiCausesType,
+  CiEventType,
+  MultiBranchType
+} from './dto/octane/events/CiTypes';
 import {
   generateRootCiEvent,
   getEventType,
@@ -42,13 +46,16 @@ import {
   pollForJobsOfTypeToFinish
 } from './service/ciEventsService';
 import {
-  getPipelineName,
+  buildPipelineName,
   getPipelineData,
   PipelineEventData,
   updatePipelineNameIfNeeded
 } from './service/pipelineDataService';
 import { collectSCMData, sendPullRequestData } from './service/scmDataService';
-import { sendJUnitTestResults } from './service/testResultsService';
+import {
+  sendGherkinTestResults,
+  sendJUnitTestResults
+} from './service/testResultsService';
 import {
   extractWorkflowFileName,
   isVersionGreaterOrEqual,
@@ -57,27 +64,141 @@ import {
 import { GenericPoller } from './utils/genericPoller';
 import { performMigrations } from './service/migrationService';
 import { Logger } from './utils/logger';
+import {
+  getParametersFromConfig,
+  getParametersFromLogs
+} from './service/parametersService';
+import CiParameter from './dto/octane/events/CiParameter';
+import { Experiment, loadExperiments } from './service/experimentService';
+import CiBuildBody from './dto/octane/general/bodies/CiBuildBody';
+import {
+  buildExecutorCiId,
+  buildExecutorName,
+  getOrCreateExecutor,
+  sendExecutorFinishEvent,
+  sendExecutorStartEvent
+} from './service/executorService';
+import CiExecutor from './dto/octane/general/CiExecutor';
+import { getOrCreateCiJob } from './service/ciJobService';
+import CiJob from './dto/octane/general/CiJob';
+import { convertRootCauseType } from './service/eventCauseBuilder';
 
 const LOGGER: Logger = new Logger('eventHandler');
 
 export const handleEvent = async (event: ActionsEvent): Promise<void> => {
+  const eventType = getEventType(event);
+  const repositoryOwner = event.repository?.owner.login;
+  const repositoryName = event.repository?.name;
+  const workflowFilePath = event.workflow?.path;
+  const workflowName = event.workflow?.name;
+  const workflowRunId = event.workflow_run?.id;
+  const branchName = event.workflow_run?.head_branch;
+
+  if (!repositoryOwner || !repositoryName) {
+    throw new Error('Event should contain repository data!');
+  }
+
+  switch (eventType) {
+    case ActionsEventType.WORKFLOW_QUEUED:
+    case ActionsEventType.WORKFLOW_STARTED:
+    case ActionsEventType.WORKFLOW_FINISHED:
+      if (!workflowRunId) {
+        throw new Error('Event should contain workflow run id!');
+      }
+
+      if (!workflowFilePath) {
+        throw new Error('Event should contain workflow file path!');
+      }
+
+      if (!workflowName) {
+        throw new Error('Event should contain workflow name!');
+      }
+
+      await loadExperiments();
+
+      const workflowFileName = extractWorkflowFileName(workflowFilePath);
+
+      let configParameters: CiParameter[] | undefined = undefined;
+      if (
+        Experiment.RUN_GITHUB_PIPELINE_WITH_PARAMETERS.isOn() ||
+        Experiment.RUN_GITHUB_AUTOMATED_TESTS.isOn()
+      ) {
+        configParameters = await getParametersFromConfig(
+          repositoryOwner,
+          repositoryName,
+          workflowFileName,
+          branchName
+        );
+      }
+
+      if (configParameters && hasExecutorParameters(configParameters)) {
+        await handleExecutorEvent(
+          event,
+          repositoryOwner,
+          repositoryName,
+          workflowName,
+          workflowFileName,
+          configParameters
+        );
+      } else {
+        await handlePipelineEvent(
+          event,
+          repositoryOwner,
+          repositoryName,
+          workflowName,
+          workflowFileName,
+          configParameters
+        );
+      }
+
+      break;
+    case ActionsEventType.PULL_REQUEST_OPENED:
+    case ActionsEventType.PULL_REQUEST_CLOSED:
+    case ActionsEventType.PULL_REQUEST_EDITED:
+    case ActionsEventType.PULL_REQUEST_REOPENED:
+      LOGGER.info(`Received pull request event...`);
+      if (!event.pull_request || !event.repository?.html_url) {
+        throw new Error(
+          'Pull request data and repository url should be present!'
+        );
+      }
+      const gitHubPullRequest: PullRequest = event.pull_request;
+      LOGGER.info('Sending pull request data to OpenText SDP / SDM...');
+      await sendPullRequestData(
+        repositoryOwner,
+        repositoryName,
+        gitHubPullRequest,
+        event.repository.html_url
+      );
+      break;
+    case ActionsEventType.UNKNOWN_EVENT:
+      break;
+  }
+};
+
+const handlePipelineEvent = async (
+  event: ActionsEvent,
+  repositoryOwner: string,
+  repositoryName: string,
+  workflowName: string,
+  workflowFileName: string,
+  configParameters?: CiParameter[]
+): Promise<void> => {
   const startTime = new Date().getTime();
   const eventType = getEventType(event);
-  const owner = event.repository?.owner.login;
-  const repoName = event.repository?.name;
   const workflowFilePath = event.workflow?.path;
   const workflowRunId = event.workflow_run?.id;
   const runNumber = event.workflow_run?.run_number;
   const pipelineNamePattern = getConfig().pipelineNamePattern;
   const branchName = event.workflow_run?.head_branch;
 
-  if (!owner || !repoName) {
+  if (!repositoryOwner || !repositoryName) {
     throw new Error('Event should contain repository data!');
   }
 
   const currentRun = await GitHubClient.getWorkflowRun(
-    owner,
-    repoName,
+    repositoryOwner,
+    repositoryName,
     context.runId
   );
 
@@ -93,19 +214,27 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
         throw new Error('Event should contain workflow file path!');
       }
 
+      await loadExperiments();
+
       const isWorkflowStarted = eventType == ActionsEventType.WORKFLOW_STARTED;
       const isWorkflowQueued = eventType == ActionsEventType.WORKFLOW_QUEUED;
 
       const jobs = await GitHubClient.getWorkflowRunJobs(
-        owner,
-        repoName,
+        repositoryOwner,
+        repositoryName,
         workflowRunId
       );
 
       const baseUrl = getConfig().serverBaseUrl;
       const useOldCiServer = await isOldCiServer();
-      const ciServerInstanceId = getCiServerInstanceId(owner, useOldCiServer);
-      const ciServerName = await getCiServerName(owner, useOldCiServer);
+      const ciServerInstanceId = getCiServerInstanceId(
+        repositoryOwner,
+        useOldCiServer
+      );
+      const ciServerName = await getCiServerName(
+        repositoryOwner,
+        useOldCiServer
+      );
 
       const ciServer = await OctaneClient.getCiServerOrCreate(
         ciServerInstanceId,
@@ -114,23 +243,27 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
         isWorkflowQueued
       );
 
+      const ciServerBody = {
+        ...ciServer,
+        type: 'ci_server'
+      };
+
       if (isWorkflowQueued && !useOldCiServer) {
         await OctaneClient.updatePluginVersionIfNeeded(
           ciServerInstanceId,
-          ciServer
+          ciServerBody
         );
       }
 
-      const workflowFileName = extractWorkflowFileName(workflowFilePath);
-      const shortJobCiIdPrefix = `${owner}/${repoName}/${workflowFileName}`;
+      const shortJobCiIdPrefix = `${repositoryOwner}/${repositoryName}/${workflowFileName}`;
       const jobCiIdPrefix = isWorkflowQueued
         ? shortJobCiIdPrefix
         : `${shortJobCiIdPrefix}/${branchName}`;
 
-      const pipelineName = getPipelineName(
+      const pipelineName = buildPipelineName(
         event,
-        owner,
-        repoName,
+        repositoryOwner,
+        repositoryName,
         workflowFileName,
         eventType != ActionsEventType.WORKFLOW_FINISHED,
         pipelineNamePattern
@@ -141,23 +274,24 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
           event,
           pipelineName,
           shortJobCiIdPrefix,
-          ciServer
+          ciServerBody
         );
 
         await updatePipelineNameIfNeeded(
           `${jobCiIdPrefix}*`,
-          ciServer,
+          ciServerBody,
           pipelineName
         );
       }
 
       let pipelineData = await getPipelineData(
         pipelineName,
-        ciServer,
+        ciServerBody,
         event,
         isWorkflowQueued,
         jobCiIdPrefix,
-        jobs
+        jobs,
+        configParameters
       );
 
       if (isWorkflowStarted) {
@@ -192,7 +326,7 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
           () =>
             getPipelineData(
               `${pipelineData.rootJobName}/${branchName}`,
-              ciServer,
+              ciServerBody,
               event,
               false
             ),
@@ -222,7 +356,11 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
           while (!done) {
             done = allStepsFinished;
 
-            const job = await GitHubClient.getJob(owner, repoName, jobId);
+            const job = await GitHubClient.getJob(
+              repositoryOwner,
+              repositoryName,
+              jobId
+            );
 
             let ciJobEvent = mapPipelineComponentToCiEvent(
               job,
@@ -312,8 +450,8 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
           while (!done) {
             let jobs = (
               await GitHubClient.getWorkflowRunJobs(
-                owner,
-                repoName,
+                repositoryOwner,
+                repositoryName,
                 workflowRunId
               )
             ).sort(
@@ -331,8 +469,8 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
             if (jobQueue.length === 0) {
               if (tryCount === numberOfTries) {
                 let workflowRun = await GitHubClient.getWorkflowRun(
-                  owner,
-                  repoName,
+                  repositoryOwner,
+                  repositoryName,
                   workflowRunId
                 );
 
@@ -363,16 +501,20 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
           }
         };
 
-        const octaneBuilds = (
-          await OctaneClient.getJobBuilds(pipelineData.rootJobName)
-        ).sort((build1, build2) => build2.start_time - build1.start_time);
+        const latestPreviousBuild = await getLatestPreviousBuild(
+          jobCiIdPrefix,
+          workflowRunId
+        );
 
-        if (octaneBuilds.length > 1) {
-          // Current build is already existing in Octane at this point,
-          // so we must take the start time of the second oldest build.
-          const since = new Date(octaneBuilds[1].start_time);
+        if (latestPreviousBuild) {
+          const since = new Date(latestPreviousBuild.start_time);
 
-          const scmData = await collectSCMData(event, owner, repoName, since);
+          const scmData = await collectSCMData(
+            event,
+            repositoryOwner,
+            repositoryName,
+            since
+          );
 
           if (scmData) {
             const rootSCMEvent = generateRootCiEvent(
@@ -398,19 +540,30 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
       } else if (eventType == ActionsEventType.WORKFLOW_FINISHED) {
         LOGGER.info('Waiting for queued events to finish up...');
         await pollForJobsOfTypeToFinish(
-          owner,
-          repoName,
+          repositoryOwner,
+          repositoryName,
           currentRun,
           workflowRunId,
           startTime,
           ActionsEventType.WORKFLOW_STARTED
         );
 
+        let executionParameters: CiParameter[] | undefined = undefined;
+        if (Experiment.RUN_GITHUB_PIPELINE_WITH_PARAMETERS.isOn()) {
+          executionParameters = await getParametersFromLogs(
+            repositoryOwner,
+            repositoryName,
+            workflowRunId
+          );
+        }
+
         const completedEvent = generateRootCiEvent(
           event,
           pipelineData,
           CiEventType.FINISHED,
-          jobCiIdPrefix
+          jobCiIdPrefix,
+          undefined,
+          executionParameters
         );
 
         await OctaneClient.sendEvents(
@@ -421,12 +574,24 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
 
         if (getConfig().unitTestResultsGlobPattern) {
           await sendJUnitTestResults(
-            owner,
-            repoName,
+            repositoryOwner,
+            repositoryName,
             workflowRunId,
             pipelineData.buildCiId,
             `${jobCiIdPrefix}`,
             pipelineData.instanceId
+          );
+        }
+
+        if (getConfig().gherkinTestResultsGlobPattern) {
+          await sendGherkinTestResults(
+            repositoryOwner,
+            repositoryName,
+            workflowRunId,
+            pipelineData.buildCiId,
+            `${jobCiIdPrefix}`,
+            pipelineData.instanceId,
+            'Gherkin'
           );
         }
       }
@@ -442,16 +607,202 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
         );
       }
       const gitHubPullRequest: PullRequest = event.pull_request;
-      LOGGER.info('Sending pull request data to ALM Octane...');
+      LOGGER.info('Sending pull request data to OpenText SDP / SDM...');
       await sendPullRequestData(
-        owner,
-        repoName,
+        repositoryOwner,
+        repositoryName,
         gitHubPullRequest,
         event.repository.html_url
       );
       break;
     case ActionsEventType.UNKNOWN_EVENT:
       break;
+  }
+};
+
+const handleExecutorEvent = async (
+  event: ActionsEvent,
+  repositoryOwner: string,
+  repositoryName: string,
+  workflowName: string,
+  workflowFileName: string,
+  configParameters: CiParameter[]
+): Promise<void> => {
+  const eventType = getEventType(event);
+  const runNumber = event.workflow_run?.run_number;
+  const startTime = new Date().getTime();
+  const workflowRunId = event.workflow_run?.id;
+  const branchName = event.workflow_run?.head_branch;
+
+  if (!branchName || !runNumber || !workflowRunId) {
+    throw Error(
+      `Could not read event details: {branchName='${branchName}', runNumber='${runNumber}', workflowRunId='${workflowRunId}'}`
+    );
+  }
+
+  const strWorkflowRunId = workflowRunId.toString();
+
+  const config = getConfig();
+  const executorNamePattern = config.pipelineNamePattern;
+  const testingFramework = config.testingFramework;
+
+  let executorJob: CiJob | undefined;
+  let executor: CiExecutor | undefined;
+
+  const executorCiId = buildExecutorCiId(
+    repositoryOwner,
+    repositoryName,
+    workflowFileName,
+    branchName
+  );
+
+  const parentCiId = buildExecutorCiId(
+    repositoryOwner,
+    repositoryName,
+    workflowFileName
+  );
+
+  const executorName = buildExecutorName(
+    executorNamePattern,
+    repositoryOwner,
+    repositoryName,
+    workflowName,
+    workflowFileName
+  );
+
+  const baseUrl = getConfig().serverBaseUrl;
+  const ciServerInstanceId = getCiServerInstanceId(repositoryOwner, false);
+  const ciServerName = await getCiServerName(repositoryOwner, false);
+
+  const ciServer = await OctaneClient.getCiServerOrCreate(
+    ciServerInstanceId,
+    ciServerName,
+    baseUrl,
+    eventType === ActionsEventType.WORKFLOW_QUEUED
+  );
+
+  switch (eventType) {
+    case ActionsEventType.WORKFLOW_FINISHED:
+      await OctaneClient.updatePluginVersionIfNeeded(ciServerInstanceId, {
+        ...ciServer,
+        type: 'ci_server'
+      });
+
+      executorJob = await getOrCreateCiJob(
+        executorName,
+        executorCiId,
+        ciServer,
+        branchName,
+        configParameters
+      );
+
+      executor = await getOrCreateExecutor(
+        executorName,
+        executorJob.id,
+        testingFramework,
+        ciServer
+      );
+
+      const executionParameters = await getParametersFromLogs(
+        repositoryOwner,
+        repositoryName,
+        workflowRunId
+      );
+
+      const startEventCauses = [
+        {
+          buildCiId: strWorkflowRunId,
+          project: executorCiId,
+          type: CiCausesType.UPSTREAM,
+          userId: event.workflow_run?.triggering_actor.login,
+          userName: event.workflow_run?.triggering_actor.login,
+          causes: [
+            {
+              buildCiId: strWorkflowRunId,
+              project: parentCiId,
+              type: convertRootCauseType(event.workflow_run?.event),
+              userId: event.workflow_run?.triggering_actor.login,
+              userName: event.workflow_run?.triggering_actor.login
+            }
+          ]
+        }
+      ];
+
+      await sendExecutorStartEvent(
+        event,
+        executorName,
+        executorCiId,
+        parentCiId,
+        workflowRunId.toString(),
+        runNumber.toString(),
+        branchName,
+        startTime,
+        baseUrl,
+        executionParameters,
+        startEventCauses,
+        ciServer
+      );
+
+      const finishEventCauses = [
+        {
+          buildCiId: strWorkflowRunId,
+          project: executorCiId,
+          type: CiCausesType.UPSTREAM,
+          userId: event.workflow_run?.triggering_actor.login,
+          userName: event.workflow_run?.triggering_actor.login,
+          causes: [
+            {
+              buildCiId: strWorkflowRunId,
+              project: parentCiId,
+              type: convertRootCauseType(event.workflow_run?.event),
+              userId: event.workflow_run?.triggering_actor.login,
+              userName: event.workflow_run?.triggering_actor.login
+            }
+          ]
+        }
+      ];
+
+      await sendExecutorFinishEvent(
+        event,
+        executorName,
+        executorCiId,
+        parentCiId,
+        workflowRunId.toString(),
+        runNumber.toString(),
+        branchName,
+        startTime,
+        baseUrl,
+        executionParameters,
+        finishEventCauses,
+        ciServer
+      );
+
+      if (getConfig().unitTestResultsGlobPattern) {
+        await sendJUnitTestResults(
+          repositoryOwner,
+          repositoryName,
+          workflowRunId,
+          strWorkflowRunId,
+          executorCiId,
+          ciServer.instance_id
+        );
+      }
+
+      if (getConfig().gherkinTestResultsGlobPattern) {
+        await sendGherkinTestResults(
+          repositoryOwner,
+          repositoryName,
+          workflowRunId,
+          strWorkflowRunId,
+          executorCiId,
+          ciServer.instance_id,
+          testingFramework
+        );
+      }
+
+      break;
+    default:
+      throw Error('Unsupported event for test runner.');
   }
 };
 
@@ -495,4 +846,34 @@ const getCiServerName = async (
   } else {
     return `GHA-${repositoryOwner}`;
   }
+};
+
+const getLatestPreviousBuild = async (
+  jobCiId: string,
+  currentBuildCiId: number
+): Promise<CiBuildBody | undefined> => {
+  const octaneBuilds: CiBuildBody[] = (
+    await OctaneClient.getJobBuilds(jobCiId)
+  ).sort((build1, build2) => build2.start_time - build1.start_time);
+
+  for (const ciBuild of octaneBuilds) {
+    if (ciBuild.build_ci_id !== currentBuildCiId) {
+      return ciBuild;
+    }
+  }
+
+  return undefined;
+};
+
+const hasExecutorParameters = (
+  configParameters: CiParameter[] | undefined
+): boolean => {
+  if (!configParameters) {
+    return false;
+  }
+
+  const requiredParameters = ['suiteRunId', 'executionId', 'testsToRun'];
+  const foundNames = new Set(configParameters.map(param => param.name));
+
+  return requiredParameters.every(name => foundNames.has(name));
 };

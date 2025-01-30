@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -34,7 +34,15 @@ import { ActionsJob } from '../dto/github/ActionsJob';
 import WorkflowRun from '../dto/github/WorkflowRun';
 import WorkflowRunStatus from '../dto/github/WorkflowRunStatus';
 import CiEvent from '../dto/octane/events/CiEvent';
-import { CiEventType, Result } from '../dto/octane/events/CiTypes';
+import CiEventCause from '../dto/octane/events/CiEventCause';
+import CiParameter from '../dto/octane/events/CiParameter';
+import {
+  CiEventType,
+  MultiBranchType,
+  PhaseType,
+  Result
+} from '../dto/octane/events/CiTypes';
+import CiServer from '../dto/octane/general/CiServer';
 import ScmData from '../dto/octane/scm/ScmData';
 import { sleep } from '../utils/utils';
 import { CauseJobData, getCiEventCauses } from './eventCauseBuilder';
@@ -136,7 +144,8 @@ const generateRootCiEvent = (
   pipelineData: PipelineEventData,
   eventType: CiEventType,
   jobCiIdPrefix: string,
-  scmData?: ScmData
+  scmData?: ScmData,
+  parameters?: CiParameter[]
 ): CiEvent => {
   const rootEvent: CiEvent = {
     buildCiId: pipelineData.buildCiId,
@@ -157,7 +166,8 @@ const generateRootCiEvent = (
         userName: event.workflow_run?.triggering_actor.login
       },
       pipelineData.buildCiId
-    )
+    ),
+    parameters: parameters
   };
 
   if (CiEventType.FINISHED === eventType) {
@@ -177,6 +187,48 @@ const generateRootCiEvent = (
   }
 
   return rootEvent;
+};
+
+const generateRootExecutorEvent = (
+  event: ActionsEvent,
+  executorName: string,
+  executorCiId: string,
+  buildCiId: string,
+  runNumber: string,
+  branchName: string,
+  startTime: number,
+  eventType: CiEventType,
+  parameters: CiParameter[],
+  causes: CiEventCause[],
+  multiBranchType: MultiBranchType,
+  parentCiId: string,
+  phaseType?: PhaseType
+): CiEvent => {
+  const executorEvent: CiEvent = {
+    buildCiId,
+    eventType,
+    number: runNumber,
+    parentCiId,
+    project: executorCiId,
+    projectDisplayName: executorName,
+    multiBranchType,
+    startTime,
+    branch: branchName,
+    parameters,
+    causes,
+    phaseType,
+    skipValidation: true
+  };
+
+  if (CiEventType.FINISHED === eventType) {
+    executorEvent.duration = getRunDuration(
+      event.workflow_run?.run_started_at,
+      event.workflow_run?.updated_at
+    );
+    executorEvent.result = getRunResult(event.workflow_run?.conclusion);
+  }
+
+  return executorEvent;
 };
 
 const mapPipelineComponentToCiEvent = (
@@ -282,6 +334,7 @@ const getRunResult = (conclusion: string | undefined | null): Result => {
 
 export {
   generateRootCiEvent,
+  generateRootExecutorEvent,
   mapPipelineComponentToCiEvent,
   getEventType,
   pollForJobsOfTypeToFinish

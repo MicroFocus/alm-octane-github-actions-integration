@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -28,12 +28,50 @@
  */
 
 import OctaneClient from '../client/octaneClient';
+import CiParameter from '../dto/octane/events/CiParameter';
 import CiJobBody from '../dto/octane/general/bodies/CiJobBody';
 import CiJob from '../dto/octane/general/CiJob';
 import CiServer from '../dto/octane/general/CiServer';
 
 const getAllJobsByPipeline = async (pipelineId: string): Promise<CiJob[]> => {
   return await OctaneClient.getAllJobsByPipeline(pipelineId);
+};
+
+const getJobByCiId = async (
+  ciId: string,
+  ciServer: CiServer
+): Promise<CiJob> => {
+  const ciJob = await OctaneClient.getCiJob(ciId, ciServer);
+  if (!ciJob) {
+    throw Error(`Could not find job with {ci_id='${ciId}'}.`);
+  }
+
+  return ciJob;
+};
+
+const getOrCreateCiJob = async (
+  name: string,
+  ciId: string,
+  ciServer: CiServer,
+  branchName: string,
+  parameters?: CiParameter[]
+): Promise<CiJob> => {
+  const ciJob = await OctaneClient.getCiJob(ciId, ciServer);
+
+  if (ciJob) {
+    return ciJob;
+  }
+
+  return await OctaneClient.createCiJob({
+    name: name,
+    jobCiId: ciId,
+    ciServer: {
+      id: ciServer.id,
+      type: 'ci_server'
+    },
+    branchName: branchName,
+    parameters: parameters
+  });
 };
 
 const updateJobsCiIdIfNeeded = async (
@@ -111,6 +149,8 @@ const checkIfCiServerIdsMatch = (
 
 export {
   getAllJobsByPipeline,
+  getJobByCiId,
+  getOrCreateCiJob,
   updateJobsCiIdIfNeeded,
   updateJobsCiServerIfNeeded
 };

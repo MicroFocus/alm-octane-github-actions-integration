@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -31,6 +31,7 @@ import OctaneClient from '../client/octaneClient';
 import { getConfig } from '../config/config';
 import ActionsEvent from '../dto/github/ActionsEvent';
 import { ActionsJob } from '../dto/github/ActionsJob';
+import CiParameter from '../dto/octane/events/CiParameter';
 import { MultiBranchType } from '../dto/octane/events/CiTypes';
 import CiPipelineBody from '../dto/octane/general/bodies/CiPipelineBody';
 import CiServerBody from '../dto/octane/general/bodies/CiServerBody';
@@ -48,7 +49,7 @@ interface PipelineEventData {
 
 const LOGGER: Logger = new Logger('pipelineDataService');
 
-const getPipelineName = (
+const buildPipelineName = (
   event: ActionsEvent,
   owner: string,
   repoName: string,
@@ -80,7 +81,8 @@ const getPipelineData = async (
   event: ActionsEvent,
   createOnAbsence: boolean,
   jobCiIdPrefix?: string,
-  jobs?: ActionsJob[]
+  jobs?: ActionsJob[],
+  configParameters?: CiParameter[]
 ): Promise<PipelineEventData> => {
   const baseUrl = getConfig().serverBaseUrl;
 
@@ -89,7 +91,8 @@ const getPipelineData = async (
     ciServer,
     createOnAbsence,
     jobCiIdPrefix,
-    jobs
+    jobs,
+    configParameters
   );
 
   const buildCiId = event.workflow_run?.id.toString();
@@ -180,7 +183,7 @@ const upgradePipelineToMultiBranchIfNeeded = async (
 };
 
 export {
-  getPipelineName,
+  buildPipelineName,
   getPipelineData,
   updatePipeline,
   updatePipelineNameIfNeeded,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -25,13 +25,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 export default interface CiParameter {
   name: string;
-  defaultValue: string;
-  type: string;
-  choices: string[];
-  description: string;
   value?: string;
+  defaultValue?: string;
+  type?: string;
+  choices?: string[];
+  description?: string;
 }

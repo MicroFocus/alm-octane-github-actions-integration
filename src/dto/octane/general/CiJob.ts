@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -27,8 +27,13 @@
  * limitations under the License.
  */
 
+import CiExecutor from './CiExecutor';
+import CiServer from './CiServer';
+
 export default interface CiJob {
   id: string;
   name: string;
   ci_id: string;
+  ci_server?: CiServer;
+  executor?: CiExecutor;
 }

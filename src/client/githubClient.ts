@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -35,6 +35,7 @@ import Commit from '../dto/github/Commit';
 import WorkflowRun from '../dto/github/WorkflowRun';
 import WorkflowRunStatus from '../dto/github/WorkflowRunStatus';
 import { Logger } from '../utils/logger';
+import FileContent from '../dto/github/FileContent';
 
 export default class GitHubClient {
   private static LOGGER: Logger = new Logger('githubClient');
@@ -220,5 +221,53 @@ export default class GitHubClient {
         response => response.data
       )
     ).map(commit => commit.sha);
+  };
+
+  public static getDownloadLogsUrl = async (
+    owner: string,
+    repo: string,
+    workflowRunId: number
+  ): Promise<string | undefined> => {
+    this.LOGGER.info(
+      `Downloading logs for workflow with {run_id='${workflowRunId}'}...`
+    );
+
+    const response = await this.octokit.rest.actions.downloadWorkflowRunLogs({
+      owner: owner,
+      repo,
+      run_id: workflowRunId,
+      archive_format: 'zip'
+    });
+
+    if (!response.url) {
+      this.LOGGER.warn(
+        `Couldn't get the location of the logs files for workflow with {run_id='${workflowRunId}'}...`
+      );
+    }
+
+    return response.url;
+  };
+
+  public static getWorkflowFile = async (
+    owner: string,
+    repo: string,
+    workflowFileName: string,
+    branchName?: string
+  ): Promise<FileContent> => {
+    this.LOGGER.info(
+      `Getting the configuration file for workflow with {workflowFileName='${workflowFileName}'}...`
+    );
+
+    const response = await this.octokit.request(
+      'GET /repos/{owner}/{repo}/contents/{path}',
+      {
+        owner: owner,
+        repo: repo,
+        path: `.github/workflows/${workflowFileName}`,
+        ...(branchName && { ref: branchName })
+      }
+    );
+
+    return <FileContent>response.data;
   };
 }

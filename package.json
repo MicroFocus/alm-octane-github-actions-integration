@@ -1,7 +1,7 @@
 {
   "name": "alm-octane-github-actions-integration",
-  "version": "24.4.2",
-  "description": "A custom action which facilitates the connection between GitHub actions and ALM Octane.",
+  "version": "25.1.1",
+  "description": "A custom action which facilitates the connection between GitHub actions and OpenText SDP / SDM.",
   "main": "src/main.ts",
   "scripts": {
     "test": "jest",
@@ -46,11 +46,12 @@
     "@actions/core": "^1.10.0",
     "@actions/github": "^5.1.1",
     "@microfocus/alm-octane-js-rest-sdk": "^24.2.1",
-    "@microfocus/alm-octane-test-result-convertion": "^25.1.0",
+    "@microfocus/alm-octane-test-result-convertion": "^25.1.2",
     "adm-zip": "^0.5.10",
     "fs-extra": "^11.1.0",
     "glob": "^8.1.0",
-    "glob-promise": "^6.0.2"
+    "glob-promise": "^6.0.2",
+    "yaml": "^2.5.1"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,css}": "prettier --write"

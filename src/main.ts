@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 Open Text.
+ * Copyright 2016-2024 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -25,7 +25,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 import { setFailed } from '@actions/core';
 import { context } from '@actions/github';
@@ -38,10 +38,9 @@ import { handleEvent } from './eventHandler';
   } catch (error: any) {
     let msg;
     if (error.response) {
-      if(error.response.config) {
+      if (error.response.config) {
         msg = `${error.response.status} - ${error.response.statusText}\n url: ${error.response.config.url} - ${error.response.config.method}\n${error.response.data.description_translated}`;
-      }
-      else {
+      } else {
         msg = JSON.stringify(error.response);
       }
     } else {
