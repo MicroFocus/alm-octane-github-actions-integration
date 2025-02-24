@@ -194,19 +194,25 @@ const getFrameworkId = (framework: string): string => {
 
   switch (framework) {
     case 'bddScenario':
-      frameworkId = 'list_node.je.framework.cucumber';
     case 'cucumber':
       frameworkId = 'list_node.je.framework.cucumber';
+      break;
     case 'gradle':
-      frameworkId = 'list_node.je.framework.junit';
-    case 'jbehave':
-      frameworkId = 'list_node.je.framework.jbehave';
     case 'junit':
       frameworkId = 'list_node.je.framework.junit';
+      break;
+    case 'jbehave':
+      frameworkId = 'list_node.je.framework.jbehave';
+      break;
     case 'protractor':
       frameworkId = 'list_node.testing_tool_type.protractor';
+      break;
     case 'testNG':
       frameworkId = 'list_node.je.framework.testng';
+      break;
+    case 'uft':
+      frameworkId = 'list_node.je.framework.uft';
+      break;
     default:
       frameworkId = 'list_node.je.framework.junit';
   }

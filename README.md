@@ -1,4 +1,5 @@
 ## 1. Introduction 🚀
+
 In the following documentation, the **OpenText Core Software Delivery Platform** and **OpenText Software Delivery Management** will collectively be referred to as 'the product'.
 
 This is a custom GitHub Action which facilitates communication between GitHub and the product (formelly known as ALM Octane/ValueEdge) regarding CI/CD. The action will monitor an automation workflow and will reflect it into the product.
@@ -18,15 +19,17 @@ This is a custom GitHub Action which facilitates communication between GitHub an
   - [5.2. Installing a GitHub App to specific repositories](#52-installing-a-github-app-to-specific-repositories)
   - [5.3. Configure the credential into the product](#53-configure-the-credential-into-the-product)
 - [6. Running Automated Tests](#6-running-automated-tests-from-the-product)
-- [7. Limitations](#7-limitations)
-- [8. Change log](#8-change-log)
+- [7. OpenText Functional Testing](#7-opentext-functional-testing-framework)
+- [8. Limitations](#8-limitations)
+- [9. Change log](#9-change-log)
+  - [v25.2.0](#v2520)
   - [v25.1.1](#v2511)
   - [v25.1.0](#v2510)
   - [v24.4.1](#v2441)
-  - [v24.4.0](#v2440)
-  - [Older versions](#v2420)
+  - [Older versions](#v2440)
 
 ## 3. Requirements
+
 - At least one GitHub Actions runner allocated for running the integration.
 - the product version should be **16.1.200** or **higher** (certain features require a newer version - see documentation)
 - API access to the product with **CI/CD Integration** or **DevOps Admin** roles.
@@ -230,13 +233,18 @@ jobs:
 3. **Set Up for GitHub Actions Integration:**
    - To integrate GitHub Actions with the product as a test runner, include the `testingFramework` parameter in your workflow configuration.  
    - The `testingFramework` parameter should be set to one of the following values, based on the testing tool used:
-     - `cucumber`
-     - `bddScenario` (for Cucumber with BDD scenario)
-     - `gradle`
-     - `jbehave`
-     - `junit`
-     - `protractor`
-     - `testNG` (Selenium)
+
+        |  Framework Name               | Parameter Value  |
+        |-------------------------------|------------------|
+        | Cucumber                      | `cucumber`       |
+        | Cucumber with BDD Scenario    | `bddScenario`    |
+        | Gradle                        | `gradle`         |
+        | JBehave                       | `jbehave`        |
+        | JUnit                         | `junit`          |
+        | Protractor                    | `protractor`     |
+        | Selenium (TestNG)             | `testNG`         |
+        | OpenText Functional Testing   | `uft`            |
+
    - Based on the test results format, you should configure at least one of the following parameters to see the test results in the product:
      - If you want to inject **JUnit** test results, set the `unitTestResultsGlobPattern` parameter.
      - If you want to inject **Gherkin (BDD)** test results, set the `gherkinTestResultsGlobPattern` parameter. ([see more](#injecting-gherkin-bdd-test-results))
@@ -250,12 +258,22 @@ jobs:
      - Manually within the product.
      - Automatically by running tests once in GitHub Actions without configuring the test runner parameters mentioned above (the integration should be configured for the pipeline flow, not the test runner flow).
 
-## 7. Limitations
+## 7. OpenText Functional Testing framework
+
+- To configure an automation workflow that runs tests using the OpenText Functional Testing *(formerly UFT One)* framework, follow the steps outlined in the following documentation: [Set Up OpenText Functional Testing](https://github.com/MicroFocus/alm-octane-github-actions-integration/blob/main/docs/set-up-opentext-functional-testing.md).
+
+## 8. Limitations
+
 - Needs at least one dedicated GitHub runner to execute the integration workflow.
 - On each pipeline run, the commits that happened since the previous build in the product will be injected. For that, at least one build needs to exist in the product (the commits will be injected starting from the second run of the workflow with the integration).
 - Commits from secondary branches will be injected by running the workflow on the desired branch.
 
-## 8. Change log
+## 9. Change log
+
+### v25.2.0
+
+ - Added support for OpenText Functional Testing *(formerly UFT One)*. See how to configure the automation workflow [here](https://github.com/MicroFocus/alm-octane-github-actions-integration/blob/main/docs/set-up-opentext-functional-testing.md).
+ - Saving the `artifact ID` and `external run ID` for each automated run in the product. The `Test Run Report URL` field in the workflow (pipeline) topology could include these values.
 
 ### v25.1.1
 

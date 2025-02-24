@@ -784,7 +784,8 @@ const handleExecutorEvent = async (
           workflowRunId,
           strWorkflowRunId,
           executorCiId,
-          ciServer.instance_id
+          ciServer.instance_id,
+          testingFramework
         );
       }
 
