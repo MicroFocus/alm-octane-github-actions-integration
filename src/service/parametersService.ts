@@ -122,7 +122,7 @@ const getWorkflowLogs = async (
     fsExtra.mkdirSync(LOGS_DIR);
   }
 
-  fsExtra.writeFileSync(logsFileName, Buffer.from(logsZipBytes));
+  fsExtra.writeFileSync(logsFileName, new Uint8Array(logsZipBytes));
 
   const zip = new AdmZip(logsFileName);
   zip.extractAllTo(LOGS_DIR);

@@ -667,7 +667,8 @@ const handleExecutorEvent = async (
     repositoryOwner,
     repositoryName,
     workflowName,
-    workflowFileName
+    workflowFileName,
+    branchName
   );
 
   const baseUrl = getConfig().serverBaseUrl;

@@ -253,10 +253,16 @@ jobs:
    - After completing the configuration, run your workflow. This will create a **test runner entity** in the product.
 
 5. **Link Automated Test Entities:**
-   - Link automated test entities in the product to the newly created test runner.  
+   - In the product, navigate to the **Tests** module, and link **Automated Test** entities to the newly created test runner.  
    - Automated test entities can be created in two ways:
      - Manually within the product.
      - Automatically by running tests once in GitHub Actions without configuring the test runner parameters mentioned above (the integration should be configured for the pipeline flow, not the test runner flow).
+
+6. **Create a Test Suite:**
+   - In the **Tests** module, create a **Test Suite** entity if you don't have one, then assign the relevant **Automated Test** entities to it.
+
+7. **Run the Automated Tests from the Product:**
+   - In the product, select or open the test suite and click `Run`, respectively `Run Suite`.
 
 ## 7. OpenText Functional Testing framework
 
@@ -274,6 +280,7 @@ jobs:
 
  - Added support for OpenText Functional Testing *(formerly UFT One)*. See how to configure the automation workflow [here](https://github.com/MicroFocus/alm-octane-github-actions-integration/blob/main/docs/set-up-opentext-functional-testing.md).
  - Saving the `artifact ID` and `external run ID` for each automated run in the product. The `Test Run Report URL` field in the workflow (pipeline) topology could include these values.
+ - Enhanced multi-branch test runner support.
 
 ### v25.1.1
 

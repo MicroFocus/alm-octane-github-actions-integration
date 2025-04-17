@@ -36,9 +36,6 @@ const LOGGER: Logger = new Logger('experimentService');
 const MINIMUM_OCTANE_VERSION_FOR_EXPERIMENTS = '25.1.12';
 
 class Experiment {
-  public static readonly RUN_GITHUB_PIPELINE = new Experiment(
-    'run_github_pipeline'
-  );
   public static readonly RUN_GITHUB_PIPELINE_WITH_PARAMETERS = new Experiment(
     'run_github_pipeline_with_parameters'
   );
@@ -84,9 +81,6 @@ const loadExperiments = async (): Promise<void> => {
     );
     const experimentsMap = await OctaneClient.getFeatureToggles();
 
-    Experiment.RUN_GITHUB_PIPELINE.setOn(
-      experimentsMap[Experiment.RUN_GITHUB_PIPELINE.getName()]
-    );
     Experiment.RUN_GITHUB_PIPELINE_WITH_PARAMETERS.setOn(
       experimentsMap[Experiment.RUN_GITHUB_PIPELINE_WITH_PARAMETERS.getName()]
     );

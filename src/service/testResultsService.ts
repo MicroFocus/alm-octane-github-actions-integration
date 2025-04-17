@@ -80,7 +80,7 @@ const processArtifacts = async (
       repo,
       artifactId
     );
-    fsExtra.writeFileSync(fileName, Buffer.from(artifactZipBytes));
+    fsExtra.writeFileSync(fileName, new Uint8Array(artifactZipBytes));
 
     LOGGER.debug(`Extracting artifact: ${artifact.name}`);
     const zip = new AdmZip(fileName);

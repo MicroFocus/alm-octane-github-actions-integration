@@ -169,13 +169,15 @@ const buildExecutorName = (
   repositoryOwner: string,
   repositoryName: string,
   workflowName: string,
-  workflowFileName: string
+  workflowFileName: string,
+  branchName: string
 ): string => {
-  return executorNamePattern
+  const executorName = executorNamePattern
     .replace('${repository_owner}', repositoryOwner)
     .replace('${repository_name}', repositoryName)
     .replace('${workflow_name}', workflowName)
     .replace('${workflow_file_name}', workflowFileName);
+  return `${executorName}/${branchName}`;
 };
 
 const buildExecutorCiId = (
