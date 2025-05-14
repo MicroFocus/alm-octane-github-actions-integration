@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 Open Text.
+ * Copyright 2022-2025 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -54,7 +54,7 @@ export default class OctaneClient {
   private static LOGGER: Logger = new Logger('octaneClient');
 
   private static GITHUB_ACTIONS_SERVER_TYPE = 'github_actions';
-  private static GITHUB_ACTIONS_PLUGIN_VERSION = '25.2.0';
+  private static GITHUB_ACTIONS_PLUGIN_VERSION = '25.2.1';
   private static config = getConfig();
   private static octane: Octane = new Octane({
     server: this.config.octaneUrl,

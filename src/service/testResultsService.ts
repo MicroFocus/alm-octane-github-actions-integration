@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 Open Text.
+ * Copyright 2022-2025 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -39,6 +39,7 @@ import OctaneClient from '../client/octaneClient';
 import { getConfig } from '../config/config';
 import { Logger } from '../utils/logger';
 import OctaneBuildConfig from '@microfocus/alm-octane-test-result-convertion/dist/service/OctaneBuildConfig';
+import { stringToFrameworkType } from '@microfocus/alm-octane-test-result-convertion/dist/model/common/FrameworkType';
 
 const LOGGER: Logger = new Logger('testResultsService');
 
@@ -99,7 +100,7 @@ const processArtifacts = async (
         ...buildContext,
         artifact_id: artifactId.toString()
       },
-      [artifactId, ...extraConvertParams]
+      extraConvertParams
     );
 
     LOGGER.debug(
@@ -161,7 +162,7 @@ const sendTestResults = async (
     );
 
     LOGGER.debug(
-      `Sending converted test results for file '${reportFile}', artifactId '${extraConvertParams[0]}', and serverId '${buildContext.server_id}'`
+      `Sending converted test results for file '${reportFile}', artifactId '${buildContext.artifact_id}', and serverId '${buildContext.server_id}'`
     );
 
     LOGGER.debug(`Converted XML: ${convertedXML}`);
@@ -188,7 +189,8 @@ const sendJUnitTestResults = async (
   buildId: string,
   jobId: string,
   serverId: string,
-  framework?: string
+  framework?: string,
+  isExecutor?: boolean
 ) => {
   LOGGER.info('Processing JUnit test results...');
 
@@ -196,7 +198,7 @@ const sendJUnitTestResults = async (
     server_id: serverId,
     build_id: buildId,
     job_id: jobId,
-    external_run_id: workflowRunId.toString()
+    external_run_id: isExecutor ? undefined : workflowRunId.toString()
   };
 
   await processArtifacts(
@@ -206,7 +208,7 @@ const sendJUnitTestResults = async (
     buildContext,
     getConfig().unitTestResultsGlobPattern,
     convertJUnitXMLToOctaneXML,
-    framework ? [framework] : undefined
+    framework ? [stringToFrameworkType(framework)] : undefined
   );
   LOGGER.info('JUnit test results processed and sent successfully.');
 };
@@ -235,7 +237,7 @@ const sendGherkinTestResults = async (
     buildContext,
     getConfig().gherkinTestResultsGlobPattern,
     convertGherkinXMLToOctaneXML,
-    [framework]
+    framework ? [stringToFrameworkType(framework)] : undefined
   );
   LOGGER.info('Gherkin test results processed and sent successfully.');
 };

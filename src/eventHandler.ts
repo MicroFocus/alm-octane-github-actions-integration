@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 Open Text.
+ * Copyright 2022-2025 Open Text.
  *
  * The only warranties for products and services of Open Text and
  * its affiliates and licensors (“Open Text”) are as may be set forth
@@ -538,6 +538,8 @@ const handlePipelineEvent = async (
         LOGGER.info('Polling for job updates...');
         await pollForJobUpdates(3000, 2);
       } else if (eventType == ActionsEventType.WORKFLOW_FINISHED) {
+        const testingFramework = getConfig().testingFramework;
+
         LOGGER.info('Waiting for queued events to finish up...');
         await pollForJobsOfTypeToFinish(
           repositoryOwner,
@@ -579,7 +581,9 @@ const handlePipelineEvent = async (
             workflowRunId,
             pipelineData.buildCiId,
             `${jobCiIdPrefix}`,
-            pipelineData.instanceId
+            pipelineData.instanceId,
+            testingFramework,
+            false
           );
         }
 
@@ -591,7 +595,7 @@ const handlePipelineEvent = async (
             pipelineData.buildCiId,
             `${jobCiIdPrefix}`,
             pipelineData.instanceId,
-            'Gherkin'
+            testingFramework
           );
         }
       }
@@ -786,7 +790,8 @@ const handleExecutorEvent = async (
           strWorkflowRunId,
           executorCiId,
           ciServer.instance_id,
-          testingFramework
+          testingFramework,
+          true
         );
       }
 

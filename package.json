@@ -1,6 +1,6 @@
 {
   "name": "alm-octane-github-actions-integration",
-  "version": "25.2.0",
+  "version": "25.2.1",
   "description": "A custom action which facilitates the connection between GitHub actions and OpenText SDP / SDM.",
   "main": "src/main.ts",
   "scripts": {
@@ -46,7 +46,7 @@
     "@actions/core": "^1.10.0",
     "@actions/github": "^5.1.1",
     "@microfocus/alm-octane-js-rest-sdk": "^24.2.1",
-    "@microfocus/alm-octane-test-result-convertion": "^25.2.2",
+    "@microfocus/alm-octane-test-result-convertion": "^25.2.3",
     "adm-zip": "^0.5.10",
     "fs-extra": "^11.1.0",
     "glob": "^8.1.0",

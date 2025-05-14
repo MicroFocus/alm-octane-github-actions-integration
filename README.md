@@ -242,11 +242,12 @@ jobs:
         | JBehave                       | `jbehave`        |
         | JUnit                         | `junit`          |
         | Protractor                    | `protractor`     |
+        | Robot Framework               | `robotFramework` |
         | Selenium (TestNG)             | `testNG`         |
         | OpenText Functional Testing   | `uft`            |
 
    - Based on the test results format, you should configure at least one of the following parameters to see the test results in the product:
-     - If you want to inject **JUnit** test results, set the `unitTestResultsGlobPattern` parameter.
+     - If you want to inject **JUnit** or **XUnit** test results, set the `unitTestResultsGlobPattern` parameter.
      - If you want to inject **Gherkin (BDD)** test results, set the `gherkinTestResultsGlobPattern` parameter. ([see more](#injecting-gherkin-bdd-test-results))
 
 4. **Run the Workflow:**
@@ -275,6 +276,12 @@ jobs:
 - Commits from secondary branches will be injected by running the workflow on the desired branch.
 
 ## 9. Change log
+
+### v25.2.1
+
+- Added support for XUnit-formatted test results.
+- Added a new value for the `testingFramework` configuration parameter: `robotFramework`
+- Fixed issue regarding the injection of test results for automated tests triggered from the product.
 
 ### v25.2.0
 
