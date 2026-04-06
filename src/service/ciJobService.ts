@@ -32,6 +32,8 @@ import CiParameter from '../dto/octane/events/CiParameter';
 import CiJobBody from '../dto/octane/general/bodies/CiJobBody';
 import CiJob from '../dto/octane/general/CiJob';
 import CiServer from '../dto/octane/general/CiServer';
+import { NEW_SEPARATOR, appendJobName } from '../utils/pathFormatter';
+import { GITHUB_ACTIONS_PLUGIN_VERSION } from '../utils/constants';
 
 const getAllJobsByPipeline = async (pipelineId: string): Promise<CiJob[]> => {
   return await OctaneClient.getAllJobsByPipeline(pipelineId);
@@ -82,23 +84,65 @@ const updateJobsCiIdIfNeeded = async (
   newPipelineName: string
 ): Promise<void> => {
   const jobsToUpdate: CiJobBody[] = [];
-  jobs.forEach((ciJob: CiJob) => {
+  let pipelineCiId: string | undefined;
+
+  // Find the pipeline job
+  for (const ciJob of jobs) {
+    if (ciJob.name === oldPipelineName) {
+      pipelineCiId = ciJob.ci_id;
+      break;
+    }
+  }
+
+  for (const ciJob of jobs) {
     if (checkIfCiIdStartsWithPrefix(ciJob, ciIdPrefix)) {
-      if (ciJob.name === oldPipelineName) {
-        jobsToUpdate.push({
-          jobId: ciJob.id,
-          name: newPipelineName,
-          jobCiId: `${ciIdPrefix}`
-        });
+      // Check if the existing CI ID uses the new format (contains |~~|)
+      if (ciJob.ci_id.includes(NEW_SEPARATOR)) {
+        // For new format, just update the version prefix
+        const parts = ciJob.ci_id.split(NEW_SEPARATOR);
+        if (parts.length > 1) {
+          // Replace the old version with the new version
+          parts[0] = GITHUB_ACTIONS_PLUGIN_VERSION;
+          const updatedCiId = parts.join(NEW_SEPARATOR);
+
+          jobsToUpdate.push({
+            jobId: ciJob.id,
+            name: ciJob.name === oldPipelineName ? newPipelineName : ciJob.name,
+            jobCiId: updatedCiId
+          });
+        }
       } else {
-        jobsToUpdate.push({
-          jobId: ciJob.id,
-          name: ciJob.name,
-          jobCiId: `${ciIdPrefix}/${ciJob.name}`
-        });
+        // For old format, rebuild the CI ID
+        if (ciJob.name === oldPipelineName) {
+          jobsToUpdate.push({
+            jobId: ciJob.id,
+            name: newPipelineName,
+            jobCiId: `${ciIdPrefix}`
+          });
+        } else {
+          let jobCiIdWithoutPrefix = ciJob.ci_id
+            .replace(`${pipelineCiId}/`, '')
+            .replace(`/${ciJob.name}`, '');
+          const jobParts = jobCiIdWithoutPrefix.split('/');
+
+          let newJobCiId = ciIdPrefix;
+          if (jobCiIdWithoutPrefix !== ciJob.name) {
+            for (const part of jobParts) {
+              newJobCiId = await appendJobName(newJobCiId, part);
+            }
+          }
+
+          newJobCiId = await appendJobName(newJobCiId, ciJob.name);
+
+          jobsToUpdate.push({
+            jobId: ciJob.id,
+            name: ciJob.name,
+            jobCiId: newJobCiId
+          });
+        }
       }
     }
-  });
+  }
 
   if (jobsToUpdate.length > 0) {
     await OctaneClient.updateCiJobs(jobsToUpdate, ciServer.id, ciServer.id);
@@ -130,6 +174,13 @@ const updateJobsCiServerIfNeeded = async (
   }
 };
 
+const updateJobParameters = async (
+  jobId: string,
+  parameters: CiParameter[]
+): Promise<void> => {
+  await OctaneClient.updateCiJobParameters(jobId, parameters);
+};
+
 const checkIfCiIdStartsWithPrefix = (
   ciJob: CiJob,
   ciIdPrefix: string
@@ -152,5 +203,6 @@ export {
   getJobByCiId,
   getOrCreateCiJob,
   updateJobsCiIdIfNeeded,
-  updateJobsCiServerIfNeeded
+  updateJobsCiServerIfNeeded,
+  updateJobParameters
 };

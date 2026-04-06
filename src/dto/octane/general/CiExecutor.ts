@@ -30,4 +30,9 @@
 export default interface CiExecutor {
   id: string;
   subtype: string;
+  name: string;
+  ci_job?: {
+    id: string;
+    ci_id: string;
+  };
 }

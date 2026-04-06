@@ -45,6 +45,7 @@ interface PipelineEventData {
   buildCiId: string;
   baseUrl: string;
   rootJobName: string;
+  rootJobId: string;
 }
 
 const LOGGER: Logger = new Logger('pipelineDataService');
@@ -107,6 +108,7 @@ const getPipelineData = async (
   return {
     pipelineId: pipeline.id,
     instanceId: ciServer.instance_id,
+    rootJobId: pipeline.root_job?.id,
     rootJobName,
     baseUrl,
     buildCiId
@@ -182,11 +184,39 @@ const upgradePipelineToMultiBranchIfNeeded = async (
   await OctaneClient.updatePipeline(pipelineToUpdate);
 };
 
+const upgradePipelineCiIdIfNeeded = async (
+  pipelineName: string,
+  jobCiId: string
+): Promise<void> => {
+  const pipeline = await OctaneClient.getPipelineByName(pipelineName);
+  if (!pipeline || !pipeline.multi_branch_type) {
+    return;
+  }
+
+  LOGGER.info(
+    `Migrating '${pipelineName}' pipeline's CI ID to '${jobCiId}'...`
+  );
+
+  const pipelineJobs = await getAllJobsByPipeline(pipeline.id);
+  LOGGER.debug(
+    `Found ${pipelineJobs.length} jobs for pipeline {id='${pipeline.id}'}...`
+  );
+
+  await updateJobsCiIdIfNeeded(
+    pipelineJobs,
+    jobCiId,
+    pipeline.ci_server,
+    pipelineName,
+    pipelineName
+  );
+};
+
 export {
   buildPipelineName,
   getPipelineData,
   updatePipeline,
   updatePipelineNameIfNeeded,
   upgradePipelineToMultiBranchIfNeeded,
+  upgradePipelineCiIdIfNeeded,
   PipelineEventData
 };

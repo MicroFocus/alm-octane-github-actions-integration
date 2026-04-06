@@ -35,6 +35,7 @@ export default interface CiEvent {
   projectDisplayName: string;
   eventType: CiEventType;
   buildCiId: string;
+  customReportUrl?: string;
   project: string;
   number?: string;
   result?: Result;

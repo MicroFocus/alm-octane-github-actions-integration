@@ -35,4 +35,7 @@ export default interface CiPipeline {
   name: string;
   ci_server: CiServer;
   multi_branch_type: MultiBranchType;
+  root_job: {
+    id: string;
+  };
 }

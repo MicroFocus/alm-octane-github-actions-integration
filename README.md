@@ -2,7 +2,7 @@
 
 In the following documentation, the **OpenText Core Software Delivery Platform** and **OpenText Software Delivery Management** will collectively be referred to as 'the product'.
 
-This is a custom GitHub Action which facilitates communication between GitHub and the product (formelly known as ALM Octane/ValueEdge) regarding CI/CD. The action will monitor an automation workflow and will reflect it into the product.
+This is a custom GitHub Action which facilitates communication between GitHub and the product (formerly known as ALM Octane/ValueEdge) regarding CI/CD. The action will monitor an automation workflow and will reflect it into the product.
 
 ## 2. Table of Contents
 
@@ -22,17 +22,28 @@ This is a custom GitHub Action which facilitates communication between GitHub an
 - [7. OpenText Functional Testing](#7-opentext-functional-testing-framework)
 - [8. Limitations](#8-limitations)
 - [9. Change log](#9-change-log)
+  - [v26.2.0](#v2620)
+  - [v25.2.1](#v2521)
   - [v25.2.0](#v2520)
   - [v25.1.1](#v2511)
-  - [v25.1.0](#v2510)
-  - [v24.4.1](#v2441)
   - [Older versions](#v2440)
 
 ## 3. Requirements
 
 - At least one GitHub Actions runner allocated for running the integration.
-- the product version should be **16.1.200** or **higher** (certain features require a newer version - see documentation)
+- The product version should be **16.1.200** or **higher** (certain features require a newer version - see documentation).
 - API access to the product with **CI/CD Integration** or **DevOps Admin** roles.
+- The integration workflow requires the following minimum `permissions` to be declared (at the workflow or job level):
+
+  ```yaml
+  permissions:
+    actions: read       # Required to read workflow run details and, when using the test runner feature, to dispatch new workflow runs triggered from the product
+    contents: read      # Required to read repository contents, branches, and commit data for SCM injection
+    pull-requests: read # Required to read pull request data when the pull_request event is used
+  ```
+
+  > [!NOTE]
+  > For **private repositories**, GitHub additionally requires you to set the default `GITHUB_TOKEN` permissions to **Read and write** under `Settings -> Actions -> General`. This is because the `actions` scope is not accessible with the default read-only token on private repositories.
 
 ## 4. Workflow Configuration
 > [!NOTE]
@@ -57,7 +68,7 @@ env:
     NODE_TLS_REJECT_UNAUTHORIZED: 0
 ```
 - Add a job for the product's integration and configure details about the runner.
-- Configure two secret variables named ALM_OCTANE_CLIENT_ID and ALM_OCTANE_CLIENT_SECRET with the credential values, inside your GitHub repository (more details about
+- Configure two secret variables named `SDP_CLIENT_ID` and `SDP_CLIENT_SECRET` with the credential values, inside your GitHub repository (more details about
 secret variables configuration [here](https://docs.github.com/en/actions/security-guides/encrypted-secrets)).
 - Set integration config params (the product's URL, Shared Space, Workspace, credentials) and repository (Token and URL).
 - Set `unitTestResultsGlobPattern` to match desired **JUnit** test results path or set `gherkinTestResultsGlobPattern` to match **Gherkin (BDD)** test results path ([see more](#injecting-gherkin-bdd-test-results)).
@@ -65,19 +76,19 @@ secret variables configuration [here](https://docs.github.com/en/actions/securit
 
 ```yaml
 jobs:
-  octane_integration_job:
+  sdp_integration_job:
     runs-on: <runner_tags>
-    name: OctaneIntegration#${{github.event.action}}#${{github.event.workflow_run.id}}
+    name: SDP-Integration#${{github.event.action}}#${{github.event.workflow_run.id}}
     steps:
-      - name: GitHub Actions ALM Octane Integration
-        uses: MicroFocus/alm-octane-github-actions-integration
+      - name: Publish to OpenText SDP
+        uses: opentext/sdp-github-actions-integration
         id: gitHubActionsIntegration
         with:
           octaneUrl: <alm_octane_URL>
           octaneSharedSpace: <alm_octane_shared_space>
           octaneWorkspace: <alm_octane_workspace>
-          octaneClientId: ${{secrets.ALM_OCTANE_CLIENT_ID}}
-          octaneClientSecret: ${{secrets.ALM_OCTANE_CLIENT_SECRET}}
+          octaneClientId: ${{secrets.SDP_CLIENT_ID}}
+          octaneClientSecret: ${{secrets.SDP_CLIENT_SECRET}}
           githubToken: ${{secrets.GITHUB_TOKEN}}
           serverBaseUrl: <github_repository_URL>
           pipelineNamePattern: '${workflow_name}'
@@ -103,15 +114,20 @@ on:
 # Node configuration for allowing HTTPS requests
 env: 
     NODE_TLS_REJECT_UNAUTHORIZED: 0
+# Minimum required permissions for the integration workflow
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
 jobs:
-  octane_integration_job:
+  sdp_integration_job:
     # List of runner tags
     runs-on: [self-hosted]
-    name: OctaneIntegration#${{github.event.action}}#${{github.event.workflow_run.id}}
+    name: SDP-Integration#${{github.event.action}}#${{github.event.workflow_run.id}}
     steps:
-      - name: GitHub Actions ALM Octane Integration
+      - name: Publish to OpenText SDP
         # Reference to our public GitHub action
-        uses: MicroFocus/alm-octane-github-actions-integration
+        uses: opentext/sdp-github-actions-integration
         id: gitHubActionsIntegration
         # Config parameters for the integration
         with:
@@ -119,8 +135,8 @@ jobs:
           octaneUrl: 'http://myOctaneUrl.com'
           octaneSharedSpace: 1001
           octaneWorkspace: 1002
-          octaneClientId: ${{secrets.ALM_OCTANE_CLIENT_ID}}
-          octaneClientSecret: ${{secrets.ALM_OCTANE_CLIENT_SECRET}}
+          octaneClientId: ${{secrets.SDP_CLIENT_ID}}
+          octaneClientSecret: ${{secrets.SDP_CLIENT_SECRET}}
           # Automatically provided GitHub token
           githubToken: ${{secrets.GITHUB_TOKEN}}
           # The url that the CI Server in OpenText Core SDP will point to
@@ -148,8 +164,8 @@ jobs:
 - This parameter can contain any combination of the following placeholders:
 1. `${repository_name}` - the name of the repository
 2. `${repository_owner}` - the name of the account or organization owning the repository.
-1. `${workflow_name}` - the name of the workflow.
-2. `${workflow_file_name}` - the name of the workflow's configuration file.
+3. `${workflow_name}` - the name of the workflow.
+4. `${workflow_file_name}` - the name of the workflow's configuration file.
 
 - Example: `NEW - ${repository_name} - ${workflow_name}`
 
@@ -177,6 +193,9 @@ jobs:
 ## 5. Credential Configuration into the product
 
 - To use certain features, the product needs to send requests to GitHub. This requires configuring a GitHub App credential and adding it to the application.
+
+> [!IMPORTANT]
+> The GitHub App must be created and installed on the **organization or account that owns the repository** you want to integrate. Installing it on an account that merely has access to the repository (e.g. a collaborator or member account) is not sufficient - it must be the owning organization or account of that repository.
 
 ### 5.1. Creating a GitHub App
 
@@ -217,6 +236,11 @@ jobs:
 
 ## 6. Running Automated Tests from the product
 
+> [!IMPORTANT]
+> Before configuring this feature, ensure the following prerequisites are met:
+> - **Log workflow execution parameters**: The automation workflow must include the [Log workflow execution parameters](#4-workflow-configuration) step that captures runtime inputs. This step is required for the product to correctly pass and handle test run parameters.
+> - **Credential configuration**: A GitHub App credential must be configured in the product as described in [Section 5 — Credential Configuration into the product](#5-credential-configuration-into-the-product). This allows the product to trigger workflows on GitHub.
+
 1. **Configure Workflow Parameters:**
    - Ensure the parameters required for automated tests are properly set up in **automation** workflow as described earlier.
    - The workflow must include the following parameters:
@@ -226,7 +250,7 @@ jobs:
      - `executionId` (type: number)  
    - For numerical parameters, it is recommended to set a default value of `0`.
 
-2. **Configure the `testToRun` conversion job**:
+2. **Configure the `testsToRun` conversion job**:
    - To run the tests selected into the product, include a job for converting the `testsToRun` parameter to a format accepted by your testing framework. This should be done into your automation framework.
    - More details on how to do this step can be found here: [@opentext/sdp-sdm-tests-to-run-conversion](https://github.com/MicroFocus/sdp-sdm-tests-to-run-conversion?tab=readme-ov-file#42-running-the-tool-with-github-actions).
 
@@ -267,15 +291,25 @@ jobs:
 
 ## 7. OpenText Functional Testing framework
 
-- To configure an automation workflow that runs tests using the OpenText Functional Testing *(formerly UFT One)* framework, follow the steps outlined in the following documentation: [Set Up OpenText Functional Testing](https://github.com/MicroFocus/alm-octane-github-actions-integration/blob/main/docs/set-up-opentext-functional-testing.md).
+- To configure an automation workflow that runs tests using the OpenText Functional Testing *(formerly UFT One)* framework, follow the steps outlined in the following documentation: [Set Up OpenText Functional Testing](https://github.com/opentext/sdp-github-actions-integration/blob/main/docs/set-up-opentext-functional-testing.md).
 
 ## 8. Limitations
 
 - Needs at least one dedicated GitHub runner to execute the integration workflow.
 - On each pipeline run, the commits that happened since the previous build in the product will be injected. For that, at least one build needs to exist in the product (the commits will be injected starting from the second run of the workflow with the integration).
 - Commits from secondary branches will be injected by running the workflow on the desired branch.
+- The Octane GitHub Actions integration does not currently support direct execution or injection of NUnit test results. A workaround is possible by running NUnit tests to produce TRX results, converting the TRX files to JUnit format, publishing the JUnit results within GitHub Actions, and then completing the Octane test run so the results are injected. This allows NUnit test results to appear in Octane until native support is provided.
 
 ## 9. Change log
+
+### v26.2.0
+
+- Added support for `Custom Build Report`. The integration now automatically sets this URL for automated runs, allowing users to be redirected to the corresponding GitHub Actions job logs.
+- Added support for `Custom Test Run Report URL` for automated runs triggered by GitHub Actions test runners. To configure this feature, navigate to the Test Runner in the product and set the corresponding field as described in the [documentation](https://admhelp.microfocus.com/octane/en/latest/Online/Content/UserGuide/how_pipelines_create.htm).
+- Introduced CI server validation. A new column, `Integration status`, is now available in the product to display validation results for each CI server. To manually trigger validation, select a CI server from the grid and click the `Validate integration` button.
+- Added support for branch names containing `/`.
+- Fixed an issue where a new Automated Run was created for each test execution, preventing proper display of previous runs.
+- Improved warning messages across the product to make them clearer and more meaningful for users.
 
 ### v25.2.1
 
@@ -285,7 +319,7 @@ jobs:
 
 ### v25.2.0
 
- - Added support for OpenText Functional Testing *(formerly UFT One)*. See how to configure the automation workflow [here](https://github.com/MicroFocus/alm-octane-github-actions-integration/blob/main/docs/set-up-opentext-functional-testing.md).
+ - Added support for OpenText Functional Testing *(formerly UFT One)*. See how to configure the automation workflow [here](https://github.com/opentext/sdp-github-actions-integration/blob/main/docs/set-up-opentext-functional-testing.md).
  - Saving the `artifact ID` and `external run ID` for each automated run in the product. The `Test Run Report URL` field in the workflow (pipeline) topology could include these values.
  - Enhanced multi-branch test runner support.
 

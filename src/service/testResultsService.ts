@@ -189,16 +189,14 @@ const sendJUnitTestResults = async (
   buildId: string,
   jobId: string,
   serverId: string,
-  framework?: string,
-  isExecutor?: boolean
+  framework?: string
 ) => {
   LOGGER.info('Processing JUnit test results...');
 
   const buildContext: OctaneBuildConfig = {
     server_id: serverId,
     build_id: buildId,
-    job_id: jobId,
-    external_run_id: isExecutor ? undefined : workflowRunId.toString()
+    job_id: jobId
   };
 
   await processArtifacts(

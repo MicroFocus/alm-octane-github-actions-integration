@@ -30,15 +30,19 @@
 import OctaneClient from '../client/octaneClient';
 import { getConfig } from '../config/config';
 import ActionsEvent from '../dto/github/ActionsEvent';
+import CiJobBody from '../dto/octane/general/bodies/CiJobBody';
 import CiServerBody from '../dto/octane/general/bodies/CiServerBody';
 import CiPipeline from '../dto/octane/general/CiPipeline';
+import CiServer from '../dto/octane/general/CiServer';
 import { Logger } from '../utils/logger';
+import { appendBranchName } from '../utils/pathFormatter';
 import {
   getAllJobsByPipeline,
   updateJobsCiServerIfNeeded
 } from './ciJobService';
 import {
   updatePipeline,
+  upgradePipelineCiIdIfNeeded,
   upgradePipelineToMultiBranchIfNeeded
 } from './pipelineDataService';
 
@@ -48,7 +52,8 @@ const performMigrations = async (
   event: ActionsEvent,
   pipelineName: string,
   ciIdPrefix: string,
-  ciServer: CiServerBody
+  ciServer: CiServerBody,
+  branchName: string
 ): Promise<void> => {
   const workflowName = event.workflow?.name;
   if (!workflowName) {
@@ -62,6 +67,34 @@ const performMigrations = async (
   );
 
   await performCiServerMigration(ciServer, pipelineName);
+
+  await performPipelineCiIdMigration(pipelineName, ciIdPrefix);
+
+  const childPipelineName = `${pipelineName}/${branchName}`;
+  const branchJobCiIdPrefix = await appendBranchName(ciIdPrefix, branchName);
+  await performPipelineCiIdMigration(childPipelineName, branchJobCiIdPrefix);
+};
+
+const performExecutorMigrations = async (
+  oldCiId: string,
+  newCiId: string,
+  ciServer: CiServer
+): Promise<void> => {
+  LOGGER.info(`Upgrading Executor CI ID from '${oldCiId}' to '${newCiId}'...`);
+
+  const existingCiJob = await OctaneClient.getCiJob(oldCiId, ciServer);
+
+  if (!existingCiJob) {
+    throw Error(`Could not find executor job with {ci_id='${oldCiId}'}`);
+  }
+
+  const updatedCiJob: CiJobBody = {
+    jobId: existingCiJob.id,
+    name: existingCiJob.name,
+    jobCiId: newCiId
+  };
+
+  await OctaneClient.updateCiJobs([updatedCiJob], ciServer.id, ciServer.id);
 };
 
 const performMultiBranchPipelineMigration = async (
@@ -130,4 +163,14 @@ const shouldMigrateCiServer = (
   );
 };
 
-export { performMigrations };
+const performPipelineCiIdMigration = async (
+  pipelineName: string,
+  ciIdPrefix: string
+): Promise<void> => {
+  LOGGER.info(
+    `Upgrading CI ID for pipeline '${pipelineName}' to prefix '${ciIdPrefix}'...`
+  );
+  await upgradePipelineCiIdIfNeeded(pipelineName, ciIdPrefix);
+};
+
+export { performMigrations, performExecutorMigrations };

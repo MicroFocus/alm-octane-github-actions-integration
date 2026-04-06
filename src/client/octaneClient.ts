@@ -49,12 +49,13 @@ import CiParameter from '../dto/octane/events/CiParameter';
 import CiExecutor from '../dto/octane/general/CiExecutor';
 import CiExecutorBody from '../dto/octane/general/bodies/CiExecutorBody';
 import CiServer from '../dto/octane/general/CiServer';
+import { appendJobName } from '../utils/pathFormatter';
 
 export default class OctaneClient {
   private static LOGGER: Logger = new Logger('octaneClient');
 
   private static GITHUB_ACTIONS_SERVER_TYPE = 'github_actions';
-  private static GITHUB_ACTIONS_PLUGIN_VERSION = '25.2.1';
+  private static GITHUB_ACTIONS_PLUGIN_VERSION = '26.2.0';
   private static config = getConfig();
   private static octane: Octane = new Octane({
     server: this.config.octaneUrl,
@@ -152,22 +153,29 @@ export default class OctaneClient {
   public static createPipeline = async (
     pipelineName: string,
     ciServer: CiServerBody,
-    jobCiIdPrefix?: String,
+    jobCiIdPrefix?: string,
     jobs?: ActionsJob[],
     parameters?: CiParameter[]
   ): Promise<CiPipeline> => {
     this.LOGGER.debug(`Creating pipeline with {name='${pipelineName}'}...`);
     const defaultParameters: CiParameter[] = [];
 
-    const pipelineJobs = jobs?.map(job => {
-      const jobName = job.name;
-      const jobFullName = `${jobCiIdPrefix}/${jobName}`;
-      return {
-        name: jobName,
-        jobCiId: jobFullName,
-        ...(parameters && { parameters: defaultParameters })
-      };
-    });
+    const pipelineJobs = jobs
+      ? await Promise.all(
+          jobs.map(async job => {
+            const jobName = job.name;
+            const jobFullName = await appendJobName(
+              jobCiIdPrefix ? jobCiIdPrefix : '',
+              jobName
+            );
+            return {
+              name: jobName,
+              jobCiId: jobFullName,
+              ...(parameters && { parameters: defaultParameters })
+            };
+          })
+        )
+      : [];
 
     pipelineJobs?.push({
       name: pipelineName,
@@ -186,6 +194,7 @@ export default class OctaneClient {
           root_job_ci_id: `${jobCiIdPrefix}`,
           jobs: pipelineJobs
         })
+        .fields('name', 'ci_server', 'root_job')
         .execute()
     ).data[0];
   };
@@ -207,7 +216,7 @@ export default class OctaneClient {
 
     const pipelines = await this.octane
       .get('pipelines')
-      .fields('name', 'ci_server')
+      .fields('name', 'ci_server', 'root_job')
       .query(pipelineQuery)
       .execute();
     if (
@@ -379,6 +388,36 @@ export default class OctaneClient {
     return executors.data;
   };
 
+  public static getExecutorsByName = async (
+    name: string,
+    ciServer: CiServer
+  ): Promise<CiExecutor[] | undefined> => {
+    this.LOGGER.debug(`Getting executor with {name='${name}'}...`);
+
+    const executors = await this.octane
+      .get('executors')
+      .fields('name,subtype,ci_server{id},ci_job{ci_id}')
+      .query(
+        Query.field('name')
+          .equal(this.escapeOctaneQueryValue(name))
+          .and(
+            Query.field('ci_server').equal(Query.field('id').equal(ciServer.id))
+          )
+          .build()
+      )
+      .execute();
+
+    if (
+      !executors ||
+      executors.total_count === 0 ||
+      executors.data.length === 0
+    ) {
+      return undefined;
+    }
+
+    return executors.data;
+  };
+
   public static createExecutor = async (
     executor: CiExecutorBody
   ): Promise<CiExecutor> => {
@@ -544,6 +583,23 @@ export default class OctaneClient {
     }
 
     return ciJobs.data[0];
+  };
+
+  public static updateCiJobParameters = async (
+    jobId: string,
+    parameters: CiParameter[]
+  ): Promise<void> => {
+    this.LOGGER.debug(
+      `Updating job parameters for job with {id='${jobId}'} to '${JSON.stringify(parameters)}'...`
+    );
+
+    await this.octane
+      .update('ci_jobs', {
+        id: jobId,
+        type: 'ci_job',
+        parameters: parameters
+      })
+      .execute();
   };
 
   public static updateCiJobs = async (

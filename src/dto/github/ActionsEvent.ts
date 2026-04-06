@@ -42,6 +42,7 @@ export default interface ActionsEvent extends WebhookPayload {
   workflow?: Workflow;
   workflow_run?: {
     id: number;
+    html_url?: string;
     conclusion?: string;
     run_started_at: string;
     updated_at?: string;

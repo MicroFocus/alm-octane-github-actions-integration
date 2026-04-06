@@ -17,14 +17,14 @@ This guide explains how to configure the product's GitHub Actions integration to
 
 ## 3. Requirements
 
-- All requirements specified [here](https://github.com/MicroFocus/alm-octane-github-actions-integration?tab=readme-ov-file#3-requirements).
+- All requirements specified [here](https://github.com/opentext/sdp-github-actions-integration?tab=readme-ov-file#3-requirements).
 - A self-hosted GitHub runner with OpenText Functional Testing installed.
 
 ## 4. Workflow Configuration
 
 > [!NOTE]
 > These steps should be performed inside your GitHub repository, within the automation workflow.  
-> Additionally, configure the integration workflow as described [here](https://github.com/MicroFocus/alm-octane-github-actions-integration?tab=readme-ov-file#4-workflow-configuration).
+> Additionally, configure the integration workflow as described [here](https://github.com/opentext/sdp-github-actions-integration?tab=readme-ov-file#4-workflow-configuration).
 
 ### 4.1. Key Configuration Steps
 
@@ -58,7 +58,7 @@ jobs:
   run-tests:
     runs-on: [ self-hosted, ft-runner ]
     steps:
-    - name: Log workflow inputs for Octane
+    - name: Log workflow inputs for SDP
       run: |
         $inputs = ConvertFrom-Json -InputObject '${{ toJson(github.event.inputs) }}'
         Write-Host "execution_parameter:: $($inputs | ConvertTo-Json -Compress)"
@@ -199,7 +199,7 @@ jobs:
 
 4. Once the automation workflow has been properly configured, manually trigger the **automation workflow** on GitHub. Running this workflow will automatically create the test runner within the product.
 
-5. To allow the product to interact with the GitHub Actions API, configure the necessary credentials. ([see more](https://github.com/MicroFocus/alm-octane-github-actions-integration?tab=readme-ov-file#5-credential-configuration-into-the-product))
+5. To allow the product to interact with the GitHub Actions API, configure the necessary credentials. ([see more](https://github.com/opentext/sdp-github-actions-integration?tab=readme-ov-file#5-credential-configuration-into-the-product))
 
 6. The test runner created in step `5.` needs to be linked to automated tests. These tests should have already been injected using a separate workflow that scans and collects all tests in the repository.
 
@@ -243,7 +243,7 @@ jobs:
   run-tests:
     runs-on: [ self-hosted, ft-runner ]
     steps:
-    - name: Log workflow inputs for Octane
+    - name: Log workflow inputs for SDP
       run: |
         $inputs = ConvertFrom-Json -InputObject '${{ toJson(github.event.inputs) }}'
         Write-Host "execution_parameter:: $($inputs | ConvertTo-Json -Compress)"

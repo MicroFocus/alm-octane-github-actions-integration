@@ -65,6 +65,19 @@ const getExecutor = async (
   return executor;
 };
 
+const getExecutorByName = async (
+  name: string,
+  ciServer: CiServer
+): Promise<CiExecutor | undefined> => {
+  const executors = await OctaneClient.getExecutorsByName(name, ciServer);
+
+  if (!executors || executors.length === 0) {
+    return undefined;
+  }
+
+  return executors[0];
+};
+
 const getOrCreateExecutor = async (
   name: string,
   ciJobId: string,
@@ -180,17 +193,6 @@ const buildExecutorName = (
   return `${executorName}/${branchName}`;
 };
 
-const buildExecutorCiId = (
-  repositoryOwner: string,
-  repositoryName: string,
-  workflowFileName: string,
-  branchName?: string
-): string => {
-  return branchName
-    ? `${repositoryOwner}/${repositoryName}/${workflowFileName}/executor/${branchName}`
-    : `${repositoryOwner}/${repositoryName}/${workflowFileName}/executor`;
-};
-
 const getFrameworkId = (framework: string): string => {
   let frameworkId;
 
@@ -225,10 +227,10 @@ const getFrameworkId = (framework: string): string => {
 };
 
 export {
+  getExecutorByName,
   getExecutor,
   getOrCreateExecutor,
   buildExecutorName,
-  buildExecutorCiId,
   sendExecutorStartEvent,
   sendExecutorFinishEvent
 };

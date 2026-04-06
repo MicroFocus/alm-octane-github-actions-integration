@@ -36,15 +36,12 @@ const LOGGER: Logger = new Logger('experimentService');
 const MINIMUM_OCTANE_VERSION_FOR_EXPERIMENTS = '25.1.12';
 
 class Experiment {
-  public static readonly RUN_GITHUB_PIPELINE_WITH_PARAMETERS = new Experiment(
-    'run_github_pipeline_with_parameters'
-  );
-  public static readonly RUN_GITHUB_AUTOMATED_TESTS = new Experiment(
-    'run_github_automated_tests'
+  public static readonly CUSTOM_BUILD_URL_FOR_GITHUB_ACTIONS = new Experiment(
+    'custom_build_url_for_github_actions'
   );
 
   private readonly name: string;
-  private on: boolean = false;
+  private isEnabled: boolean = false;
 
   constructor(name: string) {
     this.name = name;
@@ -55,16 +52,16 @@ class Experiment {
   }
 
   public isOn(): boolean {
-    return this.on;
+    return this.isEnabled;
   }
 
   public isOff(): boolean {
-    return !this.on;
+    return !this.isEnabled;
   }
 
-  public setOn(on: boolean): void {
-    this.on = on;
-    LOGGER.info(`Feature '${this.name}' is ${this.on ? 'on' : 'off'}.`);
+  public setEnabled(isEnabled: boolean): void {
+    this.isEnabled = isEnabled;
+    LOGGER.info(`Feature '${this.name}' is ${this.isEnabled ? 'on' : 'off'}.`);
   }
 }
 
@@ -77,19 +74,18 @@ const loadExperiments = async (): Promise<void> => {
     )
   ) {
     LOGGER.debug(
-      `${currentOctaneVersion} vs ${MINIMUM_OCTANE_VERSION_FOR_EXPERIMENTS}`
+      `Current OpenText CSDP / SDM version: '${currentOctaneVersion}'. Minimum version for experiments: '${MINIMUM_OCTANE_VERSION_FOR_EXPERIMENTS}'`
     );
     const experimentsMap = await OctaneClient.getFeatureToggles();
 
-    Experiment.RUN_GITHUB_PIPELINE_WITH_PARAMETERS.setOn(
-      experimentsMap[Experiment.RUN_GITHUB_PIPELINE_WITH_PARAMETERS.getName()]
-    );
-    Experiment.RUN_GITHUB_AUTOMATED_TESTS.setOn(
-      experimentsMap[Experiment.RUN_GITHUB_AUTOMATED_TESTS.getName()]
+    Experiment.CUSTOM_BUILD_URL_FOR_GITHUB_ACTIONS.setEnabled(
+      experimentsMap[
+        Experiment.CUSTOM_BUILD_URL_FOR_GITHUB_ACTIONS.getName()
+      ] === true
     );
   } else {
     LOGGER.info(
-      `The current version of Octane is older that ${MINIMUM_OCTANE_VERSION_FOR_EXPERIMENTS}. Turning off all experiments...`
+      `The current version of OpenText CSDP / SDM is older than '${MINIMUM_OCTANE_VERSION_FOR_EXPERIMENTS}'. Turning off all experiments...`
     );
   }
 };

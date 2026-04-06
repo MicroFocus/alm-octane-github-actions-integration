@@ -62,7 +62,10 @@ import {
   sleep
 } from './utils/utils';
 import { GenericPoller } from './utils/genericPoller';
-import { performMigrations } from './service/migrationService';
+import {
+  performExecutorMigrations,
+  performMigrations
+} from './service/migrationService';
 import { Logger } from './utils/logger';
 import {
   getParametersFromConfig,
@@ -72,16 +75,22 @@ import CiParameter from './dto/octane/events/CiParameter';
 import { Experiment, loadExperiments } from './service/experimentService';
 import CiBuildBody from './dto/octane/general/bodies/CiBuildBody';
 import {
-  buildExecutorCiId,
   buildExecutorName,
+  getExecutorByName,
   getOrCreateExecutor,
   sendExecutorFinishEvent,
   sendExecutorStartEvent
 } from './service/executorService';
 import CiExecutor from './dto/octane/general/CiExecutor';
-import { getOrCreateCiJob } from './service/ciJobService';
+import { getOrCreateCiJob, updateJobParameters } from './service/ciJobService';
 import CiJob from './dto/octane/general/CiJob';
 import { convertRootCauseType } from './service/eventCauseBuilder';
+import {
+  appendBranchName,
+  appendJobName,
+  buildExecutorCiId,
+  buildJobCiIdPrefix
+} from './utils/pathFormatter';
 
 const LOGGER: Logger = new Logger('eventHandler');
 
@@ -118,18 +127,13 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
 
       const workflowFileName = extractWorkflowFileName(workflowFilePath);
 
-      let configParameters: CiParameter[] | undefined = undefined;
-      if (
-        Experiment.RUN_GITHUB_PIPELINE_WITH_PARAMETERS.isOn() ||
-        Experiment.RUN_GITHUB_AUTOMATED_TESTS.isOn()
-      ) {
-        configParameters = await getParametersFromConfig(
+      const configParameters: CiParameter[] | undefined =
+        await getParametersFromConfig(
           repositoryOwner,
           repositoryName,
           workflowFileName,
           branchName
         );
-      }
 
       if (configParameters && hasExecutorParameters(configParameters)) {
         await handleExecutorEvent(
@@ -191,8 +195,16 @@ const handlePipelineEvent = async (
   const runNumber = event.workflow_run?.run_number;
   const pipelineNamePattern = getConfig().pipelineNamePattern;
   const branchName = event.workflow_run?.head_branch;
+  const customBuildUrlEnabled =
+    Experiment.CUSTOM_BUILD_URL_FOR_GITHUB_ACTIONS.isOn();
+  const workflowRunUrl = customBuildUrlEnabled
+    ? event.workflow_run?.html_url ||
+      (event.repository?.html_url && workflowRunId
+        ? `${event.repository.html_url}/actions/runs/${workflowRunId}`
+        : undefined)
+    : undefined;
 
-  if (!repositoryOwner || !repositoryName) {
+  if (!repositoryOwner || !repositoryName || !branchName) {
     throw new Error('Event should contain repository data!');
   }
 
@@ -255,10 +267,14 @@ const handlePipelineEvent = async (
         );
       }
 
-      const shortJobCiIdPrefix = `${repositoryOwner}/${repositoryName}/${workflowFileName}`;
+      const shortJobCiIdPrefix = await buildJobCiIdPrefix(
+        repositoryOwner,
+        repositoryName,
+        workflowFileName
+      );
       const jobCiIdPrefix = isWorkflowQueued
         ? shortJobCiIdPrefix
-        : `${shortJobCiIdPrefix}/${branchName}`;
+        : await appendBranchName(shortJobCiIdPrefix, branchName);
 
       const pipelineName = buildPipelineName(
         event,
@@ -274,7 +290,8 @@ const handlePipelineEvent = async (
           event,
           pipelineName,
           shortJobCiIdPrefix,
-          ciServerBody
+          ciServerBody,
+          branchName
         );
 
         await updatePipelineNameIfNeeded(
@@ -299,14 +316,15 @@ const handlePipelineEvent = async (
           throw new Error('Event should contain workflow data!');
         }
 
-        LOGGER.debug(
-          `Creating child pipeline: ${pipelineData.rootJobName}/${branchName}`
-        );
+        const pipelineRootJobName = `${pipelineData.rootJobName}/${branchName}`;
+
+        LOGGER.debug(`Creating child pipeline: ${pipelineRootJobName}`);
 
         let ciStartedPipelineEvent = {
           buildCiId: pipelineData.buildCiId,
+          customReportUrl: workflowRunUrl,
           project: `${jobCiIdPrefix}`,
-          projectDisplayName: `${pipelineData.rootJobName}/${branchName}`,
+          projectDisplayName: pipelineRootJobName,
           eventType: CiEventType.STARTED,
           startTime: startTime,
           multiBranchType: MultiBranchType.CHILD,
@@ -324,15 +342,15 @@ const handlePipelineEvent = async (
 
         pipelineData = await new GenericPoller<PipelineEventData>(
           () =>
-            getPipelineData(
-              `${pipelineData.rootJobName}/${branchName}`,
-              ciServerBody,
-              event,
-              false
-            ),
+            getPipelineData(pipelineRootJobName, ciServerBody, event, false),
           20,
           2 * 1000
         ).poll();
+
+        await updateJobParameters(
+          pipelineData.rootJobId,
+          configParameters || []
+        );
       }
 
       const rootParentCauseData = {
@@ -362,12 +380,15 @@ const handlePipelineEvent = async (
               jobId
             );
 
-            let ciJobEvent = mapPipelineComponentToCiEvent(
+            const jobRunUrl = job.html_url || workflowRunUrl;
+
+            let ciJobEvent = await mapPipelineComponentToCiEvent(
               job,
               rootParentCauseData,
               pipelineData.buildCiId,
               allStepsFinished,
-              runNumber
+              runNumber,
+              jobRunUrl
             );
 
             if (
@@ -393,16 +414,20 @@ const handlePipelineEvent = async (
               ).length === 0;
 
             for (const step of steps) {
-              const stepCiEvent = mapPipelineComponentToCiEvent(
+              const stepCiEvent = await mapPipelineComponentToCiEvent(
                 step,
                 {
                   isRoot: false,
-                  jobName: `${rootParentCauseData.jobName}/${job.name}`,
+                  jobName: await appendJobName(
+                    rootParentCauseData.jobName,
+                    job.name
+                  ),
                   parentJobData: rootParentCauseData
                 },
                 pipelineData.buildCiId,
                 true,
-                runNumber
+                runNumber,
+                jobRunUrl
               );
 
               if (
@@ -550,14 +575,11 @@ const handlePipelineEvent = async (
           ActionsEventType.WORKFLOW_STARTED
         );
 
-        let executionParameters: CiParameter[] | undefined = undefined;
-        if (Experiment.RUN_GITHUB_PIPELINE_WITH_PARAMETERS.isOn()) {
-          executionParameters = await getParametersFromLogs(
-            repositoryOwner,
-            repositoryName,
-            workflowRunId
-          );
-        }
+        const executionParameters = await getParametersFromLogs(
+          repositoryOwner,
+          repositoryName,
+          workflowRunId
+        );
 
         const completedEvent = generateRootCiEvent(
           event,
@@ -582,8 +604,7 @@ const handlePipelineEvent = async (
             pipelineData.buildCiId,
             `${jobCiIdPrefix}`,
             pipelineData.instanceId,
-            testingFramework,
-            false
+            testingFramework
           );
         }
 
@@ -653,14 +674,14 @@ const handleExecutorEvent = async (
   let executorJob: CiJob | undefined;
   let executor: CiExecutor | undefined;
 
-  const executorCiId = buildExecutorCiId(
+  const executorCiId = await buildExecutorCiId(
     repositoryOwner,
     repositoryName,
     workflowFileName,
     branchName
   );
 
-  const parentCiId = buildExecutorCiId(
+  const parentCiId = await buildExecutorCiId(
     repositoryOwner,
     repositoryName,
     workflowFileName
@@ -683,7 +704,7 @@ const handleExecutorEvent = async (
     ciServerInstanceId,
     ciServerName,
     baseUrl,
-    eventType === ActionsEventType.WORKFLOW_QUEUED
+    true
   );
 
   switch (eventType) {
@@ -692,6 +713,22 @@ const handleExecutorEvent = async (
         ...ciServer,
         type: 'ci_server'
       });
+
+      const existingExecutor = await getExecutorByName(executorName, ciServer);
+
+      if (existingExecutor && existingExecutor.ci_job) {
+        LOGGER.debug(
+          `Found existing executor with name '${executorName}' and ci_id '${existingExecutor.ci_job?.ci_id}'`
+        );
+
+        if (existingExecutor.ci_job.ci_id !== executorCiId) {
+          await performExecutorMigrations(
+            existingExecutor.ci_job.ci_id,
+            executorCiId,
+            ciServer
+          );
+        }
+      }
 
       executorJob = await getOrCreateCiJob(
         executorName,
@@ -790,8 +827,7 @@ const handleExecutorEvent = async (
           strWorkflowRunId,
           executorCiId,
           ciServer.instance_id,
-          testingFramework,
-          true
+          testingFramework
         );
       }
 

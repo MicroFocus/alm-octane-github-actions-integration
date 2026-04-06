@@ -40,6 +40,7 @@ interface ActionsJob {
   id: number;
   run_id: number;
   node_id: string;
+  html_url?: string | null;
   status: string;
   conclusion?: string | null;
   started_at?: string | null;

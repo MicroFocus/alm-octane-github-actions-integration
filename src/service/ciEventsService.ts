@@ -42,10 +42,11 @@ import {
   PhaseType,
   Result
 } from '../dto/octane/events/CiTypes';
-import CiServer from '../dto/octane/general/CiServer';
 import ScmData from '../dto/octane/scm/ScmData';
+import { appendJobName } from '../utils/pathFormatter';
 import { sleep } from '../utils/utils';
 import { CauseJobData, getCiEventCauses } from './eventCauseBuilder';
+import { Experiment } from './experimentService';
 import { PipelineEventData } from './pipelineDataService';
 
 interface PipelineComponent {
@@ -54,6 +55,22 @@ interface PipelineComponent {
   started_at?: string | null | undefined;
   completed_at?: string | null | undefined;
 }
+
+const getWorkflowRunUrl = (event: ActionsEvent): string | undefined => {
+  if (Experiment.CUSTOM_BUILD_URL_FOR_GITHUB_ACTIONS.isOff()) {
+    return undefined;
+  }
+
+  if (event.workflow_run?.html_url) {
+    return event.workflow_run.html_url;
+  }
+
+  if (event.repository?.html_url && event.workflow_run?.id) {
+    return `${event.repository.html_url}/actions/runs/${event.workflow_run.id}`;
+  }
+
+  return undefined;
+};
 
 const pollForJobsOfTypeToFinish = async (
   owner: string,
@@ -149,6 +166,7 @@ const generateRootCiEvent = (
 ): CiEvent => {
   const rootEvent: CiEvent = {
     buildCiId: pipelineData.buildCiId,
+    customReportUrl: getWorkflowRunUrl(event),
     eventType,
     number:
       event.workflow_run?.run_number?.toString() || pipelineData.buildCiId,
@@ -206,6 +224,7 @@ const generateRootExecutorEvent = (
 ): CiEvent => {
   const executorEvent: CiEvent = {
     buildCiId,
+    customReportUrl: getWorkflowRunUrl(event),
     eventType,
     number: runNumber,
     parentCiId,
@@ -231,17 +250,22 @@ const generateRootExecutorEvent = (
   return executorEvent;
 };
 
-const mapPipelineComponentToCiEvent = (
+const mapPipelineComponentToCiEvent = async (
   pipelineComponent: PipelineComponent,
   parentComponentData: CauseJobData,
   buildCiId: string,
   allChildrenFinished: boolean,
-  runNumber?: number
+  runNumber?: number,
+  customReportUrl?: string
 ) => {
   const componentName = pipelineComponent.name;
-  const componentFullName = `${parentComponentData.jobName}/${componentName}`;
+  const componentFullName = await appendJobName(
+    parentComponentData.jobName,
+    componentName
+  );
   const ciEvent: CiEvent = {
     buildCiId,
+    customReportUrl,
     eventType:
       allChildrenFinished && pipelineComponent.conclusion
         ? CiEventType.FINISHED
