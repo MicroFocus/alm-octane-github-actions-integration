@@ -42,8 +42,8 @@ This is a custom GitHub Action which facilitates communication between GitHub an
     pull-requests: read # Required to read pull request data when the pull_request event is used
   ```
 
-  > [!NOTE]
-  > For **private repositories**, GitHub additionally requires you to set the default `GITHUB_TOKEN` permissions to **Read and write** under `Settings -> Actions -> General`. This is because the `actions` scope is not accessible with the default read-only token on private repositories.
+> [!NOTE]
+> For **private repositories**, GitHub additionally requires you to set the default `GITHUB_TOKEN` permissions to **Read and write** under `Settings -> Actions -> General`. This is because the `actions` scope is not accessible with the default read-only token on private repositories.
 
 ## 4. Workflow Configuration
 > [!NOTE]
