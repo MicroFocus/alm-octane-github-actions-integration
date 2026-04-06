@@ -1,4 +1,4 @@
-name: 'SDP CI Integration'
+name: 'ALM Octane GitHub Actions Integration'
 description: 'Sends CI/CD data from GitHub Actions to OpenText SDP / SDM.'
 branding:
   color: blue
