@@ -1,11 +1,11 @@
 name: 'ALM Octane GitHub Actions Integration'
-description: 'Sends CI/CD data from GitHub Actions to OpenText SDP / SDM.'
+description: 'Sends CI/CD data from GitHub Actions to ALM Octane / ValueEdge.'
 branding:
   color: blue
   icon: arrow-up-circle
 inputs:
   octaneUrl:
-    description: 'Url of OpenText SDP / SDM instance'
+    description: 'Url of ALM Octane / ValueEdge instance'
     required: true
   octaneSharedSpace:
     description: 'Shared Space ID'
@@ -14,10 +14,10 @@ inputs:
     description: 'Workspace ID'
     required: true
   octaneClientId:
-    description: "OpenText SDP / SDM API Access Client ID"
+    description: "ALM Octane / ValueEdge API Access Client ID"
     required: true
   octaneClientSecret:
-    description: 'OpenText SDP / SDM API Access Client Secret'
+    description: 'ALM Octane / ValueEdge API Access Client Secret'
     required: true
   gitHubToken:
     description: 'GitHub PAT'

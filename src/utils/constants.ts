@@ -27,6 +27,6 @@
  * limitations under the License.
  */
 
-const GITHUB_ACTIONS_PLUGIN_VERSION: string = '26.2.0';
+const GITHUB_ACTIONS_PLUGIN_VERSION: string = '26.2.1';
 
 export { GITHUB_ACTIONS_PLUGIN_VERSION };
