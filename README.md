@@ -22,10 +22,10 @@ This is a custom GitHub Action which facilitates communication between GitHub an
 - [7. OpenText Functional Testing](#7-opentext-functional-testing-framework)
 - [8. Limitations](#8-limitations)
 - [9. Change log](#9-change-log)
-  - [v26.2.1](#v2620)
+  - [v26.2.2](#v2622)
+  - [v26.2.1](#v2621)
   - [v26.2.0](#v2620)
   - [v25.2.1](#v2521)
-  - [v25.2.0](#v2520)
   - [Older versions](#v2511)
 
 ## 3. Requirements
@@ -301,6 +301,10 @@ jobs:
 - The Octane GitHub Actions integration does not currently support direct execution or injection of NUnit test results. A workaround is possible by running NUnit tests to produce TRX results, converting the TRX files to JUnit format, publishing the JUnit results within GitHub Actions, and then completing the Octane test run so the results are injected. This allows NUnit test results to appear in Octane until native support is provided.
 
 ## 9. Change log
+
+### v26.2.2
+
+- Upgraded the action runtime from Node.js 20 to Node.js 24, as Node.js 20 has been deprecated by GitHub Actions.
 
 ### v26.2.1
 
