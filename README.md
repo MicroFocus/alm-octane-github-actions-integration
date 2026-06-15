@@ -31,7 +31,8 @@ This is a custom GitHub Action which facilitates communication between GitHub an
 ## 3. Requirements
 
 - At least one GitHub Actions runner allocated for running the integration.
-- The product version should be **16.1.200** or **higher** (certain features require a newer version - see documentation).
+- The product version should be **16.1.200** or **higher** for unidirectional integration (GitHub to product only). 
+  - **For bidirectional communication** (running pipelines or automated tests from the product, configuring external credentials for GitHub), the product version must be **25.1.8 or higher**. This is required because earlier versions have a limitation on credential password length (100 characters), which is insufficient for GitHub App private keys (~1500 characters).
 - API access to the product with **CI/CD Integration** or **DevOps Admin** roles.
 - The integration workflow requires the following minimum `permissions` to be declared (at the workflow or job level):
 
@@ -192,6 +193,9 @@ jobs:
 
 ## 5. Credential Configuration into the product
 
+> [!IMPORTANT]
+> **Minimum version requirement**: This feature requires the product version **25.1.8 or higher**. Earlier versions cannot store the GitHub App private key due to password field length limitations (100 characters vs. ~1500 characters required). Without this configuration, the integration will be unidirectional (GitHub to product only).
+
 - To use certain features, the product needs to send requests to GitHub. This requires configuring a GitHub App credential and adding it to the application.
 
 > [!IMPORTANT]
@@ -237,6 +241,8 @@ jobs:
 ## 6. Running Automated Tests from the product
 
 > [!IMPORTANT]
+> **Minimum version requirement**: This feature requires the product version **25.1.8 or higher**. This is needed to store the GitHub App private key credentials and establish bidirectional communication with GitHub Actions.
+>
 > Before configuring this feature, ensure the following prerequisites are met:
 > - **Log workflow execution parameters**: The automation workflow must include the [Log workflow execution parameters](#4-workflow-configuration) step that captures runtime inputs. This step is required for the product to correctly pass and handle test run parameters.
 > - **Credential configuration**: A GitHub App credential must be configured in the product as described in [Section 5 — Credential Configuration into the product](#5-credential-configuration-into-the-product). This allows the product to trigger workflows on GitHub.
