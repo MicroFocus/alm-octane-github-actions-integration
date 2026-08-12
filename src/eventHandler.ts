@@ -98,14 +98,63 @@ export const handleEvent = async (event: ActionsEvent): Promise<void> => {
   const eventType = getEventType(event);
   const repositoryOwner = event.repository?.owner.login;
   const repositoryName = event.repository?.name;
-  const workflowFilePath = event.workflow?.path;
-  const workflowName = event.workflow?.name;
   const workflowRunId = event.workflow_run?.id;
   const branchName = event.workflow_run?.head_branch;
+  const currentWorkflowName = context.workflow;
 
   if (!repositoryOwner || !repositoryName) {
     throw new Error('Event should contain repository data!');
   }
+
+  // Check if deployment lock feature is enabled (default: true)
+  const deploymentLockEnabled =
+    process.env.SDP_ENABLE_DEPLOYMENT_LOCK !== 'false';
+
+  LOGGER.debug(
+    `Deployment lock feature is ${deploymentLockEnabled ? 'enabled' : 'disabled'}.`
+  );
+
+  if (deploymentLockEnabled) {
+    // Build lock environment name based on current workflow name
+    const lockEnvironmentName = currentWorkflowName
+      ? `${currentWorkflowName}-lock`.toLowerCase().replace(/\s+/g, '-')
+      : 'integration-lock';
+
+    // Handle lock acquisition for in_progress events
+    if (
+      eventType === ActionsEventType.WORKFLOW_STARTED &&
+      workflowRunId &&
+      branchName
+    ) {
+      const lockAcquired = await GitHubClient.createDeploymentLock(
+        repositoryOwner,
+        repositoryName,
+        workflowRunId,
+        branchName,
+        lockEnvironmentName
+      );
+
+      if (!lockAcquired) {
+        LOGGER.info(
+          `Failed to acquire deployment lock. Another integration workflow instance is already processing this event. Exiting.`
+        );
+        return;
+      }
+    }
+
+    // Handle lock release for completed events
+    if (eventType === ActionsEventType.WORKFLOW_FINISHED && workflowRunId) {
+      await GitHubClient.deleteDeploymentLock(
+        repositoryOwner,
+        repositoryName,
+        workflowRunId,
+        lockEnvironmentName
+      );
+    }
+  }
+
+  const workflowFilePath = event.workflow?.path;
+  const workflowName = event.workflow?.name;
 
   switch (eventType) {
     case ActionsEventType.WORKFLOW_QUEUED:

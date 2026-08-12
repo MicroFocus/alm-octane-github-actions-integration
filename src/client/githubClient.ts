@@ -270,4 +270,133 @@ export default class GitHubClient {
 
     return <FileContent>response.data;
   };
+
+  public static createDeploymentLock = async (
+    owner: string,
+    repo: string,
+    upstreamWorkflowRunId: number,
+    branchName: string,
+    lockEnvironmentName: string
+  ): Promise<boolean> => {
+    const deploymentDescription = `Lock for upstream workflow run ${upstreamWorkflowRunId}`;
+
+    try {
+      this.LOGGER.debug(
+        `Creating deployment lock in environment '${lockEnvironmentName}' for upstream workflow run ${upstreamWorkflowRunId}...`
+      );
+
+      // Check if lock already exists for this upstream run
+      const existingDeployments = await this.octokit.paginate(
+        this.octokit.rest.repos.listDeployments,
+        {
+          owner,
+          repo,
+          environment: lockEnvironmentName,
+          per_page: 50
+        },
+        response => response.data
+      );
+
+      // Look for existing deployment for this specific upstream run
+      const hasExistingLock = existingDeployments.some(
+        deployment => deployment.description === deploymentDescription
+      );
+
+      if (hasExistingLock) {
+        this.LOGGER.info(
+          `Deployment lock already exists for upstream workflow run ${upstreamWorkflowRunId}. Another instance is processing this event.`
+        );
+        return false;
+      }
+
+      // Create the lock deployment under the shared environment
+      await this.octokit.rest.repos.createDeployment({
+        owner,
+        repo,
+        ref: branchName,
+        environment: lockEnvironmentName,
+        description: deploymentDescription,
+        auto_merge: false,
+        required_contexts: [],
+        production_environment: false
+      });
+
+      this.LOGGER.info(
+        `Created deployment lock in environment '${lockEnvironmentName}' for upstream workflow run ${upstreamWorkflowRunId}`
+      );
+      return true;
+    } catch (error: any) {
+      if (
+        error.status === 409 ||
+        error.message?.includes('Conflict') ||
+        error.message?.includes('already exists')
+      ) {
+        this.LOGGER.info(
+          `Deployment lock already exists for upstream workflow run ${upstreamWorkflowRunId}. Another instance is processing this event.`
+        );
+        return false;
+      }
+      throw error;
+    }
+  };
+
+  public static deleteDeploymentLock = async (
+    owner: string,
+    repo: string,
+    upstreamWorkflowRunId: number,
+    lockEnvironmentName: string
+  ): Promise<void> => {
+    const deploymentDescription = `Lock for upstream workflow run ${upstreamWorkflowRunId}`;
+
+    try {
+      this.LOGGER.debug(
+        `Deleting deployment lock from environment '${lockEnvironmentName}' for upstream workflow run ${upstreamWorkflowRunId}...`
+      );
+
+      const deployments = await this.octokit.paginate(
+        this.octokit.rest.repos.listDeployments,
+        {
+          owner,
+          repo,
+          environment: lockEnvironmentName,
+          per_page: 50
+        },
+        response => response.data
+      );
+
+      // Find and delete the deployment for this specific upstream run
+      const deploymentToDelete = deployments.find(
+        deployment => deployment.description === deploymentDescription
+      );
+
+      if (deploymentToDelete) {
+        try {
+          await this.octokit.rest.repos.deleteDeployment({
+            owner,
+            repo,
+            deployment_id: deploymentToDelete.id
+          });
+
+          this.LOGGER.info(
+            `Deleted deployment lock for upstream workflow run ${upstreamWorkflowRunId}`
+          );
+        } catch (error: any) {
+          // Ignore errors if deployment is already deleted
+          if (error.status !== 404) {
+            this.LOGGER.warn(
+              `Failed to delete deployment lock for upstream workflow run ${upstreamWorkflowRunId}: ${error.message}`
+            );
+          }
+        }
+      } else {
+        this.LOGGER.debug(
+          `No deployment lock found for upstream workflow run ${upstreamWorkflowRunId} in environment '${lockEnvironmentName}'`
+        );
+      }
+    } catch (error: any) {
+      this.LOGGER.warn(
+        `Error while releasing deployment lock for upstream workflow run ${upstreamWorkflowRunId}: ${error.message}`
+      );
+    }
+  };
 }

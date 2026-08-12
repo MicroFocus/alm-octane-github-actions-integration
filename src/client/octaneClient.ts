@@ -55,7 +55,7 @@ export default class OctaneClient {
   private static LOGGER: Logger = new Logger('octaneClient');
 
   private static GITHUB_ACTIONS_SERVER_TYPE = 'github_actions';
-  private static GITHUB_ACTIONS_PLUGIN_VERSION = '26.2.2';
+  private static GITHUB_ACTIONS_PLUGIN_VERSION = '26.4.0';
   private static config = getConfig();
   private static octane: Octane = new Octane({
     server: this.config.octaneUrl,

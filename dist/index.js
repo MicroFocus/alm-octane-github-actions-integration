@@ -92917,6 +92917,84 @@ GitHubClient.getWorkflowFile = (owner, repo, workflowFileName, branchName) => __
     const response = yield _a.octokit.request('GET /repos/{owner}/{repo}/contents/{path}', Object.assign({ owner: owner, repo: repo, path: `.github/workflows/${workflowFileName}` }, (branchName && { ref: branchName })));
     return response.data;
 });
+GitHubClient.createDeploymentLock = (owner, repo, upstreamWorkflowRunId, branchName, lockEnvironmentName) => __awaiter(void 0, void 0, void 0, function* () {
+    var _b, _c;
+    const deploymentDescription = `Lock for upstream workflow run ${upstreamWorkflowRunId}`;
+    try {
+        _a.LOGGER.debug(`Creating deployment lock in environment '${lockEnvironmentName}' for upstream workflow run ${upstreamWorkflowRunId}...`);
+        // Check if lock already exists for this upstream run
+        const existingDeployments = yield _a.octokit.paginate(_a.octokit.rest.repos.listDeployments, {
+            owner,
+            repo,
+            environment: lockEnvironmentName,
+            per_page: 50
+        }, response => response.data);
+        // Look for existing deployment for this specific upstream run
+        const hasExistingLock = existingDeployments.some(deployment => deployment.description === deploymentDescription);
+        if (hasExistingLock) {
+            _a.LOGGER.info(`Deployment lock already exists for upstream workflow run ${upstreamWorkflowRunId}. Another instance is processing this event.`);
+            return false;
+        }
+        // Create the lock deployment under the shared environment
+        yield _a.octokit.rest.repos.createDeployment({
+            owner,
+            repo,
+            ref: branchName,
+            environment: lockEnvironmentName,
+            description: deploymentDescription,
+            auto_merge: false,
+            required_contexts: [],
+            production_environment: false
+        });
+        _a.LOGGER.info(`Created deployment lock in environment '${lockEnvironmentName}' for upstream workflow run ${upstreamWorkflowRunId}`);
+        return true;
+    }
+    catch (error) {
+        if (error.status === 409 ||
+            ((_b = error.message) === null || _b === void 0 ? void 0 : _b.includes('Conflict')) ||
+            ((_c = error.message) === null || _c === void 0 ? void 0 : _c.includes('already exists'))) {
+            _a.LOGGER.info(`Deployment lock already exists for upstream workflow run ${upstreamWorkflowRunId}. Another instance is processing this event.`);
+            return false;
+        }
+        throw error;
+    }
+});
+GitHubClient.deleteDeploymentLock = (owner, repo, upstreamWorkflowRunId, lockEnvironmentName) => __awaiter(void 0, void 0, void 0, function* () {
+    const deploymentDescription = `Lock for upstream workflow run ${upstreamWorkflowRunId}`;
+    try {
+        _a.LOGGER.debug(`Deleting deployment lock from environment '${lockEnvironmentName}' for upstream workflow run ${upstreamWorkflowRunId}...`);
+        const deployments = yield _a.octokit.paginate(_a.octokit.rest.repos.listDeployments, {
+            owner,
+            repo,
+            environment: lockEnvironmentName,
+            per_page: 50
+        }, response => response.data);
+        // Find and delete the deployment for this specific upstream run
+        const deploymentToDelete = deployments.find(deployment => deployment.description === deploymentDescription);
+        if (deploymentToDelete) {
+            try {
+                yield _a.octokit.rest.repos.deleteDeployment({
+                    owner,
+                    repo,
+                    deployment_id: deploymentToDelete.id
+                });
+                _a.LOGGER.info(`Deleted deployment lock for upstream workflow run ${upstreamWorkflowRunId}`);
+            }
+            catch (error) {
+                // Ignore errors if deployment is already deleted
+                if (error.status !== 404) {
+                    _a.LOGGER.warn(`Failed to delete deployment lock for upstream workflow run ${upstreamWorkflowRunId}: ${error.message}`);
+                }
+            }
+        }
+        else {
+            _a.LOGGER.debug(`No deployment lock found for upstream workflow run ${upstreamWorkflowRunId} in environment '${lockEnvironmentName}'`);
+        }
+    }
+    catch (error) {
+        _a.LOGGER.warn(`Error while releasing deployment lock for upstream workflow run ${upstreamWorkflowRunId}: ${error.message}`);
+    }
+});
 
 
 /***/ }),
@@ -92983,7 +93061,7 @@ exports["default"] = OctaneClient;
 _a = OctaneClient;
 OctaneClient.LOGGER = new logger_1.Logger('octaneClient');
 OctaneClient.GITHUB_ACTIONS_SERVER_TYPE = 'github_actions';
-OctaneClient.GITHUB_ACTIONS_PLUGIN_VERSION = '26.2.2';
+OctaneClient.GITHUB_ACTIONS_PLUGIN_VERSION = '26.4.0';
 OctaneClient.config = (0, config_1.getConfig)();
 OctaneClient.octane = new alm_octane_js_rest_sdk_1.Octane({
     server: _a.config.octaneUrl,
@@ -93500,13 +93578,37 @@ const handleEvent = (event) => __awaiter(void 0, void 0, void 0, function* () {
     const eventType = (0, ciEventsService_1.getEventType)(event);
     const repositoryOwner = (_a = event.repository) === null || _a === void 0 ? void 0 : _a.owner.login;
     const repositoryName = (_b = event.repository) === null || _b === void 0 ? void 0 : _b.name;
-    const workflowFilePath = (_c = event.workflow) === null || _c === void 0 ? void 0 : _c.path;
-    const workflowName = (_d = event.workflow) === null || _d === void 0 ? void 0 : _d.name;
-    const workflowRunId = (_e = event.workflow_run) === null || _e === void 0 ? void 0 : _e.id;
-    const branchName = (_f = event.workflow_run) === null || _f === void 0 ? void 0 : _f.head_branch;
+    const workflowRunId = (_c = event.workflow_run) === null || _c === void 0 ? void 0 : _c.id;
+    const branchName = (_d = event.workflow_run) === null || _d === void 0 ? void 0 : _d.head_branch;
+    const currentWorkflowName = github_1.context.workflow;
     if (!repositoryOwner || !repositoryName) {
         throw new Error('Event should contain repository data!');
     }
+    // Check if deployment lock feature is enabled (default: true)
+    const deploymentLockEnabled = process.env.SDP_ENABLE_DEPLOYMENT_LOCK !== 'false';
+    LOGGER.debug(`Deployment lock feature is ${deploymentLockEnabled ? 'enabled' : 'disabled'}.`);
+    if (deploymentLockEnabled) {
+        // Build lock environment name based on current workflow name
+        const lockEnvironmentName = currentWorkflowName
+            ? `${currentWorkflowName}-lock`.toLowerCase().replace(/\s+/g, '-')
+            : 'integration-lock';
+        // Handle lock acquisition for in_progress events
+        if (eventType === "in_progress" /* ActionsEventType.WORKFLOW_STARTED */ &&
+            workflowRunId &&
+            branchName) {
+            const lockAcquired = yield githubClient_1.default.createDeploymentLock(repositoryOwner, repositoryName, workflowRunId, branchName, lockEnvironmentName);
+            if (!lockAcquired) {
+                LOGGER.info(`Failed to acquire deployment lock. Another integration workflow instance is already processing this event. Exiting.`);
+                return;
+            }
+        }
+        // Handle lock release for completed events
+        if (eventType === "completed" /* ActionsEventType.WORKFLOW_FINISHED */ && workflowRunId) {
+            yield githubClient_1.default.deleteDeploymentLock(repositoryOwner, repositoryName, workflowRunId, lockEnvironmentName);
+        }
+    }
+    const workflowFilePath = (_e = event.workflow) === null || _e === void 0 ? void 0 : _e.path;
+    const workflowName = (_f = event.workflow) === null || _f === void 0 ? void 0 : _f.name;
     switch (eventType) {
         case "requested" /* ActionsEventType.WORKFLOW_QUEUED */:
         case "in_progress" /* ActionsEventType.WORKFLOW_STARTED */:
@@ -95513,7 +95615,7 @@ exports.sendGherkinTestResults = sendGherkinTestResults;
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GITHUB_ACTIONS_PLUGIN_VERSION = void 0;
-const GITHUB_ACTIONS_PLUGIN_VERSION = '26.2.2';
+const GITHUB_ACTIONS_PLUGIN_VERSION = '26.4.0';
 exports.GITHUB_ACTIONS_PLUGIN_VERSION = GITHUB_ACTIONS_PLUGIN_VERSION;
 
 

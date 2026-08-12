@@ -21,12 +21,14 @@ This is a custom GitHub Action which facilitates communication between GitHub an
 - [6. Running Automated Tests](#6-running-automated-tests-from-the-product)
 - [7. OpenText Functional Testing](#7-opentext-functional-testing-framework)
 - [8. Limitations](#8-limitations)
+  - [8.1. Duplicate Workflow Run Protection](#81-duplicate-workflow-run-protection)
 - [9. Change log](#9-change-log)
+  - [v26.4.0](#v2640)
   - [v26.2.2](#v2622)
   - [v26.2.1](#v2621)
   - [v26.2.0](#v2620)
   - [v25.2.1](#v2521)
-  - [Older versions](#v2511)
+  - [Older versions](#v2520)
 
 ## 3. Requirements
 
@@ -154,6 +156,19 @@ jobs:
     - name: Log workflow execution parameters
       run: |
         echo "execution_parameter:: $(echo '${{ toJson(github.event.inputs) }}' | jq -c .)"
+```
+
+- To disable the **deployment lock mechanism** (which prevents duplicate workflow runs when a multi-job upstream workflow triggers the integration multiple times), set the `SDP_ENABLE_DEPLOYMENT_LOCK` environment variable to `false` in the integration job. By default, this feature is **enabled** to prevent duplicate CI events in the product:
+
+```yaml
+  sdp_integration_job:
+    runs-on: <runner_tags>
+    env:
+      SDP_ENABLE_DEPLOYMENT_LOCK: false  # Optional: set to false to disable duplicate run protection
+    steps:
+      - name: Publish to OpenText SDP
+        uses: opentext/sdp-github-actions-integration
+        ...
 ```
 
 - Run the desired workflow(s) from Actions Tab. This will create a new CI Server and pipeline inside the product, reflecting the status of the executed workflow.
@@ -306,7 +321,20 @@ jobs:
 - Commits from secondary branches will be injected by running the workflow on the desired branch.
 - The Octane GitHub Actions integration does not currently support direct execution or injection of NUnit test results. A workaround is possible by running NUnit tests to produce TRX results, converting the TRX files to JUnit format, publishing the JUnit results within GitHub Actions, and then completing the Octane test run so the results are injected. This allows NUnit test results to appear in Octane until native support is provided.
 
+## 8.1. Duplicate Workflow Run Protection
+
+The integration now includes a **deployment lock mechanism** that automatically prevents duplicate workflow runs when a multi-job upstream workflow triggers the integration multiple times (once for each job start/end). This feature is **enabled by default** and ensures that only one integration workflow processes each upstream workflow run, preventing duplicate CI events in the product.
+
+To disable this feature (if needed for compatibility or specific use cases), set the `SDP_ENABLE_DEPLOYMENT_LOCK` environment variable to `false` in your integration job configuration.
+
 ## 9. Change log
+
+### v26.4.0
+
+- Introduced a **deployment lock mechanism** to prevent duplicate workflow runs when multi-job upstream workflows trigger the integration multiple times.
+- The integration now uses GitHub Deployments as atomic locks to ensure only one workflow processes each upstream workflow run, preventing duplicate CI events in the product.
+- Added `SDP_ENABLE_DEPLOYMENT_LOCK` environment variable (enabled by default) to control this feature. Set to `false` to disable duplicate run protection if needed.
+- Added comprehensive documentation for the duplicate workflow run protection feature in the README.
 
 ### v26.2.2
 
